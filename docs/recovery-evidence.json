@@ -1,0 +1,50 @@
+{
+  "date": "2026-10-27",
+  "desktop": {
+    "platform": "macOS arm64",
+    "electron": "45.0.0",
+    "qvac": "0.22.0",
+    "nodeTestsPassed": 26,
+    "packagedRuns": [
+      {
+        "phase": 1,
+        "packaged": true,
+        "electron": "45.0.0",
+        "qvac": "0.22.0",
+        "syntheticClient": true,
+        "checks": {
+          "repeatableAcknowledgment": true,
+          "retryAfterDiscardedAcceptanceUsesSameJob": true,
+          "realRunningAndQueuedAtAbruptExit": true
+        }
+      },
+      {
+        "phase": 2,
+        "packaged": true,
+        "electron": "45.0.0",
+        "qvac": "0.22.0",
+        "syntheticClient": true,
+        "checks": {
+          "runningBecameTruthfulInterruptedFailure": true,
+          "queuedContinuedWithRealQvacAfterRestart": true,
+          "completedResultSurvivedRestart": true,
+          "acknowledgedTaskDidNotRunAgain": true,
+          "realCancellationCompletionRace": "cancelled",
+          "cancelFencesDelayedSubmission": true,
+          "expiryWithAdvancedClockRemovedPrivateResult": true
+        }
+      }
+    ],
+    "verifiedSourceSha256": {
+      "src/jobs.cjs": "361518c5b5106ff11753daadf9aba8116d615441ac4d045ce2ad2cdb5b609436",
+      "src/device-service.cjs": "e3f65d6dcde1a7d9819a586e8f9091f46e58a10e7acc565c19927480b85e1d15",
+      "src/verify-recovery.cjs": "2825a437e1cce6106ed4d19d4a91400132465d6fbc64e8f638d58e3845f32f74"
+    }
+  },
+  "evidenceNotes": [
+    "Actual SIGKILL during synchronously verified durable running and queued states; completed work was also present.",
+    "Synthetic signed TLS peer and isolated OS-encrypted vault. Real packaged QVAC inference before and after process restart.",
+    "Expiry uses an explicitly advanced clock; not a 24-hour elapsed wait.",
+    "Physical phone evidence is in the sibling journal/docs/task-recovery-evidence.json."
+  ]
+}

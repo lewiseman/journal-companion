@@ -1,8 +1,22 @@
+const { randomInt } = require('node:crypto');
 const { EventEmitter } = require('node:events');
 const os = require('node:os');
 const path = require('node:path');
 const fs = require('node:fs/promises');
-const { MODEL, CompanionError, verifyModel, downloadModel, readSelection, saveSelection } = require('./model.cjs');
+const { MODEL, getModel, CompanionError, verifyModel, downloadModel, downloadRegistryModel, readSelection, saveSelection } = require('./model.cjs');
+const { SUMMARY_OPERATION, SUMMARY_LIMITS, SUMMARY_SYSTEM, validateSummaryInput, validateSummaryOutput } = require('./summary.cjs');
+
+const { OPERATIONS, TRANSFORM_LIMITS, validateTransformInput, validateTransformOutput, transformSystem } = require('./transform.cjs');
+const { PRESENTATION_OPERATION, PRESENTATION_LIMITS, PRESENTATION_SYSTEM, validatePresentationInput, validatePresentationOutput, presentationResponseFormat } = require('./presentation.cjs');
+const { DIARY_OPERATION, DIARY_LIMITS, DIARY_SYSTEM, validateDiaryInput, validateDiaryOutput, diaryResponseFormat } = require('./diary.cjs');
+const { QUESTION_OPERATION, QUESTION_LIMITS, QUESTION_SYSTEM, validateQuestionInput, validateQuestionOutput, questionResponseFormat } = require('./question.cjs');
+const { HISTORY_OPERATION, HISTORY_LIMITS, HISTORY_SYSTEM, validateHistoryInput, validateHistoryOutput, historyResponseFormat } = require('./history.cjs');
+
+function writingModel(id) {
+  const model = getModel(id);
+  if (model.capability !== 'text') throw new CompanionError('INCOMPATIBLE_MODEL', 'Image and speech models are download-only for now. Choose a writing model to load.');
+  return model;
+}
 
 function hostProblem(platform = process.platform, arch = process.arch, release = os.release(), memory = os.totalmem()) {
   if (platform !== 'darwin' || arch !== 'arm64' || Number(release.split('.')[0]) < 23) {
@@ -34,9 +48,11 @@ function publicError(error) {
 }
 
 class Runtime extends EventEmitter {
-  constructor(directory, { sdkFactory = () => import('@qvac/sdk'), checkHost = hostProblem } = {}) {
+  constructor(directory, { sdkFactory = () => import('@qvac/sdk'), checkHost = hostProblem, modelVerifier = verifyModel, modelDownloader = downloadModel, registryDownloader = downloadRegistryModel } = {}) {
     super(); this.directory = directory; this.sdkFactory = sdkFactory; this.checkHost = checkHost;
     this.state = { status: 'unavailable', detail: 'Choose how to add the model to get started.', selected: false, model: MODEL, host: `${process.platform} ${process.arch}`, error: null, progress: null };
+    this.model = MODEL;
+    this.verifyFile = modelVerifier; this.downloadFile = modelDownloader; this.downloadRegistry = registryDownloader;
     this.busy = false; this.modelId = null; this.sdk = null; this.file = null; this.closed = false;
   }
   snapshot() { return structuredClone(this.state); }
@@ -45,7 +61,10 @@ class Runtime extends EventEmitter {
     this.unsupported = this.checkHost();
     if (this.unsupported) return this.update({ status: 'unavailable', detail: this.unsupported, error: { code: 'UNSUPPORTED_HOST', message: this.unsupported } });
     try {
-      this.file = await readSelection(this.directory);
+      const selection = await readSelection(this.directory, { details: true });
+      this.file = selection?.path || null;
+      this.model = writingModel(selection?.model.id || MODEL.id);
+      this.update({ model: this.model });
       if (this.file) { this.update({ selected: true }); await this.load(); }
     } catch (error) { this.update({ status: 'failed', detail: publicError(error).message, error: publicError(error) }); }
   }
@@ -62,8 +81,8 @@ class Runtime extends EventEmitter {
     }
     return this.sdk;
   }
-  async operation(callback) {
-    if (this.closed || this.busy) throw new CompanionError('BUSY', 'Wait for the current operation to finish.');
+  async operation(callback, { job = false } = {}) {
+    if (this.closed || this.busy || (this.reserved && !job)) throw new CompanionError('BUSY', 'Wait for accepted work to finish.');
     if (this.unsupported) throw new CompanionError('UNSUPPORTED_HOST', this.unsupported);
     this.busy = true; this.stopMonitor();
     try { return await callback(); }
@@ -73,69 +92,130 @@ class Runtime extends EventEmitter {
       const failure = publicError(error);
       this.update({ status: 'failed', detail: failure.message, error: failure, progress: null });
       return { ok: false, error: failure };
-    } finally { this.busy = false; if (this.modelId && !this.closed) this.startMonitor(); }
+    } finally {
+      this.busy = false; this.activeRun = null; this.downloadAbort = null; this.cancelRequested = false;
+      if (this.modelId && !this.closed) this.startMonitor();
+      this.emit('state', this.snapshot());
+    }
   }
   async loadVerified() {
     this.update({ status: 'loading', detail: 'Checking the complete model file…', error: null, progress: null });
-    await verifyModel(this.file);
+    await this.verifyFile(this.file, () => {}, this.model);
     this.update({ detail: 'Loading the model into memory. This can take a moment.' });
     const sdk = await this.getSdk();
     this.modelId = await bounded(sdk.loadModel({
       modelSrc: this.file, modelType: 'llamacpp-completion', seed: false,
-      modelConfig: { ctx_size: 4096, device: 'gpu', predict: 192, verbosity: 0 },
+      modelConfig: { ctx_size: 4096, device: 'gpu', predict: 192, verbosity: 0,
+        ...(this.model.reasoningBudget === 0 ? { reasoning_budget: 0 } : {}) },
     }));
     this.update({ status: 'ready', detail: 'Ready for a local text request. No internet needed.', selected: true, error: null });
     return { ok: true };
   }
-  load() { return this.operation(async () => {
+  load(id = this.model.id) { const model = writingModel(id); return this.operation(async () => {
+    if (model.id !== this.model.id || !this.file) {
+      const file = path.join(this.directory, 'models', model.filename);
+      this.update({ status: 'loading', detail: `Checking ${model.name}…`, error: null });
+      await this.verifyFile(file, () => {}, model);
+      await this.release();
+      await saveSelection(this.directory, file, model);
+      this.file = file; this.model = model;
+      this.update({ model, selected: true });
+    }
     if (this.modelId) return { ok: true };
     if (!this.file) throw new CompanionError('MISSING_WEIGHTS', 'Download the model or select the supported GGUF file first.');
     return this.loadVerified();
   }); }
-  select(file) { return this.operation(async () => {
+  select(file, id = this.model.id) { const model = writingModel(id); return this.operation(async () => {
     this.update({ status: 'loading', detail: 'Verifying the selected model…', error: null });
-    await verifyModel(file);
+    await this.verifyFile(file, () => {}, model);
     await this.release();
-    await saveSelection(this.directory, file);
-    this.file = file; this.update({ selected: true });
+    await saveSelection(this.directory, file, model);
+    this.file = file; this.model = model; this.update({ selected: true, model });
     return this.loadVerified();
   }); }
-  download() { return this.operation(async () => {
+  download(autoLoad = true, id = this.model.id) { const model = writingModel(id); return this.operation(async () => {
     await this.release();
     this.downloadAbort = new AbortController();
-    this.update({ status: 'loading', detail: 'Downloading the model from Hugging Face…', error: null, progress: 0 });
+    this.update({ status: 'loading', detail: `Downloading ${model.name} from Hugging Face…`, error: null, progress: 0 });
     let last = 0;
-    const file = await downloadModel(path.join(this.directory, 'models'), (progress) => {
+    const file = await this.downloadFile(path.join(this.directory, 'models'), (progress) => {
       if (Date.now() - last > 150 || progress === 1) { last = Date.now(); this.update({ progress }); }
-    }, this.downloadAbort.signal);
-    await saveSelection(this.directory, file); this.file = file;
-    this.update({ selected: true, progress: null });
-    return this.loadVerified();
+    }, this.downloadAbort.signal, { model });
+    await saveSelection(this.directory, file, model); this.file = file; this.model = model;
+    this.update({ selected: true, model, progress: null });
+    if (autoLoad) return this.loadVerified();
+    this.update({ status: 'unavailable', detail: 'Download verified. Load the model when you need it.' });
+    return { ok: true };
   }); }
-  generate(prompt) {
+  generate(prompt, { job = false, operation = 'text' } = {}) {
     if (typeof prompt !== 'string' || !prompt.trim() || Buffer.byteLength(prompt, 'utf8') > 2000) {
       throw new CompanionError('INVALID_INPUT', 'Enter a short request of up to 2,000 UTF-8 bytes.');
     }
+    const summary = operation === SUMMARY_OPERATION;
+    if (summary) validateSummaryInput(prompt);
+    const presentation = operation === PRESENTATION_OPERATION, diary = operation === DIARY_OPERATION, question = operation === QUESTION_OPERATION, history = operation === HISTORY_OPERATION;
+    const transform = Object.hasOwn(OPERATIONS, operation), boundedText = summary || transform || presentation || diary || question || history;
+    const limits = history ? HISTORY_LIMITS : question ? QUESTION_LIMITS : diary ? DIARY_LIMITS : presentation ? PRESENTATION_LIMITS : transform ? TRANSFORM_LIMITS : SUMMARY_LIMITS;
+    if (transform) validateTransformInput(prompt, operation);
+    if (presentation) validatePresentationInput(prompt);
+    if (diary) validateDiaryInput(prompt);
+    if (question) validateQuestionInput(prompt);
+    if (history) validateHistoryInput(prompt);
     return this.operation(async () => {
       if (!this.modelId || this.state.status !== 'ready') throw new CompanionError('NOT_READY', 'Load the model before sending a request.');
+      this.cancelRequested = false;
       this.update({ status: 'working', detail: 'Writing on this Mac…', error: null });
       const run = this.sdk.completion({
         modelId: this.modelId, history: [
-          { role: 'system', content: 'You are a helpful writing assistant. Give a brief, clear answer.' },
-          { role: 'user', content: prompt.trim() },
+          { role: 'system', content: history ? HISTORY_SYSTEM : question ? QUESTION_SYSTEM : diary ? DIARY_SYSTEM : presentation ? PRESENTATION_SYSTEM : transform ? transformSystem(operation) : summary ? SUMMARY_SYSTEM : 'You are a helpful writing assistant. Give a brief, clear answer.' },
+          { role: 'user', content: transform || presentation || diary || question || history ? prompt : summary ? JSON.stringify({ note: prompt }) : prompt.trim() },
         ], stream: true, kvCache: false,
-        generationParams: { predict: 192, temp: 0.4, seed: 42 },
+        ...(presentation ? { responseFormat: presentationResponseFormat(prompt) } : diary ? { responseFormat: diaryResponseFormat() } : question ? { responseFormat: questionResponseFormat() } : history ? { responseFormat: historyResponseFormat() } : {}),
+        // Questions vary so that asking again gives a fresh one; other bounded
+        // operations stay deterministic. The grammar and phone checks still apply.
+        generationParams: { predict: limits.outputTokens, temp: question ? 0.7 : boundedText ? 0 : 0.4, seed: question ? randomInt(2 ** 31) : 42,
+          ...(this.model.reasoningBudget === 0 ? { reasoning_budget: 0 } : {}) },
       });
       this.activeRun = run;
-      let text = '';
-      await bounded((async () => {
-        for await (const token of run.tokenStream) { text += token; this.emit('token', token); }
-        await run.text;
-      })());
+      let text = '', stopReason;
+      try {
+        await bounded((async () => {
+          for await (const token of run.tokenStream) {
+            if (typeof token !== 'string') throw new CompanionError('INVALID_OUTPUT', 'The model returned invalid text.');
+            text += token;
+            if (boundedText && Buffer.byteLength(text) > limits.outputBytes) {
+              await this.cancelGeneration();
+              throw new CompanionError('INVALID_OUTPUT', 'The result exceeded the output limit. Retry explicitly.');
+            }
+            if (!job) this.emit('token', token);
+          }
+          await run.text;
+          if (boundedText && run.final) stopReason = (await run.final).stopReason;
+        })());
+      } catch (error) {
+        if (error.code === 'INVALID_OUTPUT' || !this.cancelRequested || !this.modelId || this.closed) throw error;
+        // Cancellation is routine. Verify the model/worker survived before
+        // advertising readiness; a concurrent worker failure still fails closed.
+        await bounded(this.sdk.getLoadedModelInfo({ modelId: this.modelId }), 5000);
+        this.update({ status: 'ready', detail: 'Request cancelled. The writing model is still ready.', error: null });
+        return { ok: false, error: { code: 'CANCELLED', message: 'Request cancelled.' } };
+      }
       this.activeRun = null;
       this.update({ status: 'ready', detail: 'Finished locally. You can send another request.' });
+      if (boundedText) {
+        if (stopReason === 'length') return { ok: false, error: { code: 'OUTPUT_LIMIT', message: `The result reached its ${limits.outputTokens}-token limit. No partial result was returned; try a shorter passage.` } };
+        if (stopReason === 'cancelled') return { ok: false, error: { code: 'CANCELLED', message: 'Summary cancelled.' } };
+        try { text = history ? validateHistoryOutput(text) : question ? validateQuestionOutput(text) : diary ? validateDiaryOutput(text) : presentation ? validatePresentationOutput(text) : transform ? validateTransformOutput(text) : validateSummaryOutput(text); }
+        catch (error) { return { ok: false, error: { code: error.code, message: error.message } }; }
+      }
       return { ok: true, text };
-    });
+    }, { job });
+  }
+  async cancelGeneration() {
+    if (this.activeRun?.requestId && this.sdk) {
+      this.cancelRequested = true;
+      try { await bounded(this.sdk.cancel({ requestId: this.activeRun.requestId }), 5000); } catch { await this.closeSdk(); }
+    }
   }
   async release() {
     if (this.modelId && this.sdk) {
@@ -147,7 +227,7 @@ class Runtime extends EventEmitter {
   unload() { return this.operation(async () => {
     this.update({ status: 'loading', detail: 'Releasing the model from memory…', error: null });
     await this.release();
-    this.update({ status: 'unavailable', detail: 'Model unloaded. Load it when you want to write.', error: null });
+    this.update({ status: 'unavailable', detail: 'Model unloaded. Load it when you need it.', error: null });
     return { ok: true };
   }); }
   stopMonitor() { clearInterval(this.monitor); this.monitor = null; }

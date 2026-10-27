@@ -1,0 +1,117 @@
+{
+  "date": "2026-10-27",
+  "desktop": {
+    "platform": "macOS arm64",
+    "electron": "45.0.0",
+    "qvac": "0.22.0",
+    "node_tests_passed": 18,
+    "packaged_native_runs": [
+      {
+        "phase": 1,
+        "packaged": true,
+        "electron": "45.0.0",
+        "qvac": "0.22.0",
+        "syntheticClient": true,
+        "checks": {
+          "unauthorized": true,
+          "rendererApproval": true,
+          "authenticatedReadiness": true,
+          "persistedAssignment": true,
+          "identityMismatch": true,
+          "versionMismatch": true,
+          "lostAckDuplicate": true,
+          "realInferenceAfterDetach": true,
+          "realCancellationCompletionRace": "cancelled",
+          "modelReadyAfterCancellation": true,
+          "encryptedAtRest": true,
+          "expiredPairingWithAdvancedClock": true
+        },
+        "output": "1. Write a poem about the peacefulness of a quiet garden.\n2. Describe a garden that feels like a peaceful retreat from the hustle and bustle of the world."
+      },
+      {
+        "phase": 2,
+        "packaged": true,
+        "electron": "45.0.0",
+        "qvac": "0.22.0",
+        "syntheticClient": true,
+        "checks": {
+          "authenticatedReadiness": true,
+          "persistedAssignment": true,
+          "identityMismatch": true,
+          "versionMismatch": true,
+          "resultAfterDesktopRestart": true,
+          "revocationAndCleanup": true,
+          "expiredPairingWithAdvancedClock": true
+        }
+      }
+    ]
+  },
+  "flutter": {
+    "version": "3.47.5",
+    "dart": "3.13.4",
+    "focused_tests_passed": 20,
+    "analysis": "passed",
+    "android_debug_build": "passed",
+    "ios_unsigned_device_build": "passed"
+  },
+  "physical_android": {
+    "model": "Samsung SM-S928B",
+    "os": "Android 17",
+    "initial_full_code_ui_pairing": "observed pass in task tool output; test runner subsequently erased that installation",
+    "same_verified_desktop_identity_across_retained_runs": true,
+    "runs": [
+      {
+        "physical_device": true,
+        "transport": "pinned TLS + Ed25519",
+        "capability_status": "ready",
+        "cold_restart": false,
+        "bonjour_discovered": true,
+        "disconnect_reconnect": true,
+        "bootstrap": "test controller with full QR code",
+        "unauthorized_device_rejected": true,
+        "journal_content_sent": false,
+        "endpoint_class": "private IPv4 LAN",
+        "port": 47921
+      },
+      {
+        "physical_device": true,
+        "transport": "pinned TLS + Ed25519",
+        "capability_status": "ready",
+        "cold_restart": true,
+        "bonjour_discovered": true,
+        "disconnect_reconnect": true,
+        "bootstrap": "protected storage",
+        "unauthorized_device_rejected": true,
+        "journal_content_sent": false,
+        "endpoint_class": "private IPv4 LAN",
+        "port": 47921
+      },
+      {
+        "physical_device": true,
+        "transport": "pinned TLS + Ed25519",
+        "capability_status": "ready",
+        "cold_restart": true,
+        "bonjour_discovered": true,
+        "disconnect_reconnect": true,
+        "bootstrap": "protected storage",
+        "unauthorized_device_rejected": true,
+        "journal_content_sent": false,
+        "endpoint_class": "private IPv4 LAN",
+        "port": 47922
+      }
+    ],
+    "final_installation": "normal Android build installed; Flutter install cleared synthetic test credentials, so fresh pairing is needed"
+  },
+  "not_verified": [
+    "phone pairing with WAN/internet unavailable (router unavailable)",
+    "physical iPhone permissions, camera and Keychain",
+    "physical camera QR capture",
+    "real DHCP address changes",
+    "trusted switching between networks",
+    "hotspot behavior",
+    "physical phone revocation (covered by real TLS synthetic clients)"
+  ],
+  "other_test_findings": [
+    "Existing onboarding large-text layout checks failed at 320x568 and 844x390; source unchanged."
+  ]
+}

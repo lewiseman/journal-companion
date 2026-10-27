@@ -17,7 +17,7 @@
   </aside>
   <main>
     <header><span>YOUR DESKTOP COMPANION</span><span class="local-badge">⌘ &nbsp; Runs on your Mac</span></header>
-    <section class="intro"><div class="eyebrow">A QUIET SPACE TO THINK</div><h1>Make room for<br><em>a little inspiration.</em></h1><p>Your own writing companion. Set up a small model,<br>then try a thought, a question, or a fresh perspective.</p></section>
+    <section class="intro"><div class="eyebrow">A QUIET SPACE TO THINK</div><h1>Make room for<br><em>a little inspiration.</em></h1><p>Your own writing companion. Choose a local model,<br>then try a thought, a question, or a fresh perspective.</p></section>
     <section class="status-card" aria-live="polite">
       <div class="status-symbol" id="status-symbol">✳</div>
       <div class="status-copy"><div class="status-heading"><h2 id="status-title">AI unavailable</h2><span id="status-pill" class="pill">SETUP NEEDED</span></div><p id="status-detail">Choose how to add the model to get started.</p><p id="status-error" class="error-code" hidden></p><progress id="download-progress" max="1" hidden></progress></div>
@@ -32,9 +32,37 @@
         <div id="response" class="response empty" aria-live="polite" aria-atomic="false">A fresh perspective will appear here.</div>
         <p id="action-error" class="action-error" role="alert" hidden></p>
       </div>
-      <div class="model-card"><div class="section-label">02 / YOUR LOCAL MODEL</div><div class="model-icon">✧</div><h2>Small model.<br>New possibilities.</h2><h3>Qwen2.5 · 0.5B Instruct</h3><p class="model-meta">Q4_K_M · 491 MB · Apache 2.0</p><p>A lightweight starting point for short text. Answers can be inaccurate; review anything you use.</p><div class="model-actions"><button id="download" class="secondary">Download model <span>↓</span></button><button id="choose" class="text-button">Select existing GGUF file</button></div><p class="download-note">Download uses internet once via Qwen’s official Hugging Face repository. A selected file must match this exact model.</p><div class="model-installed" id="model-installed" hidden>✓ &nbsp; Selection remembered · checked on load</div></div>
+      <div class="model-card">
+        <div class="section-label">02 / YOUR LOCAL MODEL</div><div class="model-icon">✧</div>
+        <h2>Your choice.<br>More possibilities.</h2>
+        <label for="model-select" class="model-select-label">Choose a model</label>
+        <select id="model-select" aria-describedby="model-description model-guidance" disabled><option>Checking models…</option></select>
+        <h3 id="model-name">Qwen2.5 · 0.5B Instruct</h3><p id="model-meta" class="model-meta"></p>
+        <p id="model-description"></p><p id="model-guidance" class="model-guidance"></p>
+        <div class="model-actions"><button id="use-model" class="secondary" hidden>Use downloaded model</button><button id="download" class="secondary">Download &amp; use model ↓</button><button id="choose" class="text-button">Select existing GGUF file</button></div>
+        <p class="download-note">Downloads once from the listed Hugging Face publisher or converter, or from peers in the QVAC model registry for QVAC-converted speech models. Every file is checked against a pinned size and SHA-256. Installed models stay on this Mac when you switch. Review each model’s license in its details below.</p>
+        <div class="model-installed" id="model-installed" role="status" hidden></div>
+        <p id="model-download-status" role="status" hidden></p>
+      </div>
     </section>
-    <footer><span>◈ &nbsp; Your words stay on this computer.</span><span>Requests aren’t saved. Clear or quit to discard them.</span></footer>
+    <section class="connection-panel">
+      <h2>Models &amp; capabilities</h2><p id="library-state">Checking installed artifacts…</p>
+      <p>Writing works on desktop and paired phones. Speech-to-text, text-to-speech and image models can be downloaded now for future features. Downloading them keeps your writing model active. Transcription, read-aloud, image generation, image input, OCR and embeddings are not yet enabled.</p>
+      <button id="install" class="secondary">Download selected without loading</button> <button id="cancel-download" class="secondary">Cancel download</button>
+      <button id="remove" class="secondary">Remove active model</button> <button id="assign" class="secondary">Assign writing model</button>
+      <button id="catalog" class="text-button">Selected model details &amp; license ↗</button>
+      <p>Choose a model above to download or switch. One model runs at a time. Retry starts a new download; incomplete files cannot load. External files are never removed.</p>
+    </section>
+    <section class="connection-panel">
+      <h2>Connect a phone</h2><p>Keep both devices on the same Wi-Fi. Internet is unnecessary after setup. Scan this Mac’s QR in Journal Settings, compare the phone verification code below, then approve.</p>
+      <p id="device-service" role="status"></p><p id="identity"></p>
+      <button id="pair" class="secondary">Create pairing QR</button> <button id="disable-service" class="secondary">Stop phone connections</button>
+      <div id="pairing" hidden><img id="pair-qr" width="320" height="320" alt="Short-lived Journal pairing QR"><p id="pair-expiry"></p><label for="pair-code">Fallback: copy this full code to Journal Settings → Paste pairing code. It contains a one-use secret; share only with your intended phone.</label><textarea id="pair-code" readonly></textarea></div>
+      <div id="pending-devices"></div><h3>Trusted devices</h3><div id="trusted-devices"></div>
+      <p>Stopping connections keeps trust and accepted work. Revoking a device cancels its active work, deletes retained work and prevents future access. A new QR invalidates unapproved pairing requests.</p>
+    </section>
+    <section class="connection-panel"><h2>Activity</h2><p>Accepted phone requests are encrypted on disk for up to 24 hours. Disconnecting does not cancel them. Quit or sleep pauses execution; interrupted work requires an explicit retry with a new ID.</p><div id="activity"></div></section>
+    <footer><span>◈ &nbsp; Your words stay on this computer.</span><span>Desktop demo text is discarded on clear or quit.</span></footer>
   </main>
 </body>
 </html>
