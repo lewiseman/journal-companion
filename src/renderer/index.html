@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Journal Companion</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand"><span class="brand-mark">j.</span> Journal<span class="brand-sub">COMPANION</span></div>
+    <div class="nav-label">YOUR SPACE</div>
+    <div class="nav-active"><span>◉</span> Overview <span class="nav-dot"></span></div>
+    <div class="sidebar-note"><span class="small-orbit">✳</span><strong>A little closer to your thoughts.</strong><p>Local AI, right here on your Mac.</p></div>
+    <div class="sidebar-footer"><span class="privacy-dot"></span> Private by design <span class="preview">PREVIEW</span></div>
+  </aside>
+  <main>
+    <header><span>YOUR DESKTOP COMPANION</span><span class="local-badge">⌘ &nbsp; Runs on your Mac</span></header>
+    <section class="intro"><div class="eyebrow">A QUIET SPACE TO THINK</div><h1>Make room for<br><em>a little inspiration.</em></h1><p>Your own writing companion. Set up a small model,<br>then try a thought, a question, or a fresh perspective.</p></section>
+    <section class="status-card" aria-live="polite">
+      <div class="status-symbol" id="status-symbol">✳</div>
+      <div class="status-copy"><div class="status-heading"><h2 id="status-title">AI unavailable</h2><span id="status-pill" class="pill">SETUP NEEDED</span></div><p id="status-detail">Choose how to add the model to get started.</p><p id="status-error" class="error-code" hidden></p><progress id="download-progress" max="1" hidden></progress></div>
+      <button id="load" class="secondary" hidden>Load model</button><button id="unload" class="secondary" hidden>Unload</button>
+    </section>
+    <section class="workspace">
+      <div class="try-card">
+        <div class="section-label"><span>01 / TRY IT OUT</span><span class="muted">TEXT ONLY</span></div>
+        <h2>What’s on your mind?</h2><p class="muted">Start small. See what a local model can do.</p>
+        <form id="prompt-form"><label for="prompt" class="sr-only">Your request</label><textarea id="prompt" maxlength="1800" placeholder="Give me three thoughtful journal prompts for the end of a busy day."></textarea><div class="form-footer"><span id="input-help">Up to 2,000 UTF-8 bytes</span><button id="generate" type="submit" disabled>Generate <span>↗</span></button></div></form>
+        <div class="response-top"><span>RESPONSE</span><button id="clear" class="text-button">Clear</button></div>
+        <div id="response" class="response empty" aria-live="polite" aria-atomic="false">A fresh perspective will appear here.</div>
+        <p id="action-error" class="action-error" role="alert" hidden></p>
+      </div>
+      <div class="model-card"><div class="section-label">02 / YOUR LOCAL MODEL</div><div class="model-icon">✧</div><h2>Small model.<br>New possibilities.</h2><h3>Qwen2.5 · 0.5B Instruct</h3><p class="model-meta">Q4_K_M · 491 MB · Apache 2.0</p><p>A lightweight starting point for short text. Answers can be inaccurate; review anything you use.</p><div class="model-actions"><button id="download" class="secondary">Download model <span>↓</span></button><button id="choose" class="text-button">Select existing GGUF file</button></div><p class="download-note">Download uses internet once via Qwen’s official Hugging Face repository. A selected file must match this exact model.</p><div class="model-installed" id="model-installed" hidden>✓ &nbsp; Selection remembered · checked on load</div></div>
+    </section>
+    <footer><span>◈ &nbsp; Your words stay on this computer.</span><span>Requests aren’t saved. Clear or quit to discard them.</span></footer>
+  </main>
+</body>
+</html>

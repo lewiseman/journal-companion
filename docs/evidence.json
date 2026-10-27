@@ -1,0 +1,194 @@
+{
+  "date": "2026-10-27",
+  "host": "macOS 26.6.2 (25G83), arm64, Apple M5, 24 GiB",
+  "networkTest": "Main + Bare IP ingress/egress denied by sandbox-exec; Electron Helpers use Chromium sandbox and renderer request denial. Fixed /bin/ps diagnostic exempt.",
+  "provisioning": "Application downloader invoked from developer CLI; packaged Download button not exercised.",
+  "runs": {
+    "online": {
+      "packaged": true,
+      "electron": "45.0.0",
+      "node": "24.22.0",
+      "checks": {
+        "coldLoad": true,
+        "rendererIsolation": true,
+        "rendererSandbox": true,
+        "rendererNetworkBlocked": true,
+        "ipcValidation": true,
+        "responsiveRenderer": true,
+        "realCompletion": true,
+        "unloadWorkerExited": true,
+        "reload": true,
+        "actualWorkerCrash": true,
+        "crashRecovery": true,
+        "clear": true,
+        "quitWorkerExited": true
+      },
+      "states": [
+        {
+          "status": "working"
+        },
+        {
+          "status": "ready"
+        },
+        {
+          "status": "loading"
+        },
+        {
+          "status": "unavailable"
+        },
+        {
+          "status": "loading"
+        },
+        {
+          "status": "loading"
+        },
+        {
+          "status": "ready"
+        },
+        {
+          "status": "failed",
+          "code": "WORKER_FAILED"
+        },
+        {
+          "status": "loading"
+        },
+        {
+          "status": "loading"
+        },
+        {
+          "status": "ready"
+        }
+      ],
+      "output": "1. Write about the sights and sounds you see as you walk through peaceful landscapes.\n2. Describe the smells and sensations you experience as you walk through serene environments.\n3. Reflect on the emotions you feel as you walk through a peaceful environment, such as joy or peace.",
+      "modelType": "llamacpp-completion",
+      "fitProbe": {
+        "verdict": "fit",
+        "basis": "native-probe",
+        "engine": "llm-llamacpp",
+        "estimatorVersion": "native-probe-v2",
+        "reason": "fits",
+        "plan": {
+          "nCtx": 4096,
+          "nGpuLayers": 25,
+          "nGpuDevices": 1
+        },
+        "projection": {
+          "deviceName": "MTL0",
+          "deviceBytes": 733433344,
+          "hostBytes": 109349888,
+          "weightsBytes": 391859712,
+          "contextBytes": 26738688,
+          "computeBytes": 314834944,
+          "deviceFreeBytes": 10397777920,
+          "deviceTotalBytes": 19069665280,
+          "devices": [
+            {
+              "name": "MTL0",
+              "totalBytes": 19069665280,
+              "freeBytes": 10397777920,
+              "weightsBytes": 391859712,
+              "contextBytes": 26738688,
+              "computeBytes": 314834944
+            }
+          ]
+        }
+      }
+    },
+    "offline": {
+      "packaged": true,
+      "electron": "45.0.0",
+      "node": "24.22.0",
+      "checks": {
+        "externalNetworkUnavailable": true,
+        "coldLoad": true,
+        "rendererIsolation": true,
+        "rendererSandbox": true,
+        "rendererNetworkBlocked": true,
+        "ipcValidation": true,
+        "responsiveRenderer": true,
+        "realCompletion": true,
+        "unloadWorkerExited": true,
+        "reload": true,
+        "actualWorkerCrash": true,
+        "crashRecovery": true,
+        "clear": true,
+        "quitWorkerExited": true
+      },
+      "states": [
+        {
+          "status": "working"
+        },
+        {
+          "status": "ready"
+        },
+        {
+          "status": "loading"
+        },
+        {
+          "status": "unavailable"
+        },
+        {
+          "status": "loading"
+        },
+        {
+          "status": "loading"
+        },
+        {
+          "status": "ready"
+        },
+        {
+          "status": "failed",
+          "code": "WORKER_FAILED"
+        },
+        {
+          "status": "loading"
+        },
+        {
+          "status": "loading"
+        },
+        {
+          "status": "ready"
+        }
+      ],
+      "output": "1. Write about the sights and sounds you see as you walk through peaceful landscapes.\n2. Describe the smells and sensations you experience as you walk through serene environments.\n3. Reflect on the emotions you feel as you walk through a peaceful environment, such as joy or peace.",
+      "modelType": "llamacpp-completion",
+      "fitProbe": {
+        "verdict": "fit",
+        "basis": "native-probe",
+        "engine": "llm-llamacpp",
+        "estimatorVersion": "native-probe-v2",
+        "reason": "fits",
+        "plan": {
+          "nCtx": 4096,
+          "nGpuLayers": 25,
+          "nGpuDevices": 1
+        },
+        "projection": {
+          "deviceName": "MTL0",
+          "deviceBytes": 733433344,
+          "hostBytes": 109349888,
+          "weightsBytes": 391859712,
+          "contextBytes": 26738688,
+          "computeBytes": 314834944,
+          "deviceFreeBytes": 11785601024,
+          "deviceTotalBytes": 19069665280,
+          "devices": [
+            {
+              "name": "MTL0",
+              "totalBytes": 19069665280,
+              "freeBytes": 11785601024,
+              "weightsBytes": 391859712,
+              "contextBytes": 26738688,
+              "computeBytes": 314834944
+            }
+          ]
+        }
+      }
+    }
+  },
+  "nativeFileChooser": {
+    "normalPackagedLaunch": true,
+    "selectedSupportedGGUF": true,
+    "reachedReady": true
+  }
+}
