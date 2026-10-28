@@ -1,6 +1,6 @@
 .skills-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 32px 26px; padding-top: 8px; }
 .skill { padding: 30px 24px 22px; display: flex; flex-direction: column; gap: 16px; transition: transform .32s var(--ease-spring), box-shadow .3s; }
-.skill:hover { transform: translateY(-3px); box-shadow: var(--shadow-lift); }
+.skill:hover { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
 .skill-writing { grid-column: 1 / -1; }
 .skill-top { display: flex; align-items: center; gap: 20px; }
 .ring-art { font-size: 40px; color: var(--accent); display: grid; place-items: center; }

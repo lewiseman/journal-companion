@@ -28,6 +28,9 @@ function installCoding(m, state) {
   return steps(() => c().install(m.id), () => c().assignCoding(m.id), ...(writing && awake ? [() => c().load(writing)] : []));
 }
 
+/** A capability is missing while the app is still starting up; only a service error makes it a problem. */
+const starting = (state, model) => (state.serviceError ? { tone: 'problem', word: 'Unavailable', model } : { tone: 'working', word: 'Starting', model });
+
 // Which model each skill is pointed at in the drawer before it is in use.
 const chosen = {};
 
@@ -68,7 +71,7 @@ const SKILLS = [
     current: (s) => pick(SKILLS[1].list(s), chosen.listening || s.speech?.model),
     view(s) {
       const sp = s.speech, m = this.current(s), vad = vadOf(s);
-      if (!sp) return { tone: 'problem', word: 'Unavailable', model: m };
+      if (!sp) return starting(s, m);
       if (['loading', 'busy'].includes(sp.status)) return { tone: 'working', word: sp.status === 'busy' ? 'Listening' : 'Waking up', model: m };
       if (sp.status === 'ready' && sp.model === m.id) return { tone: 'ready', word: 'Ready', model: m };
       const missing = [m, vad].filter((x) => x && !x.installed);
@@ -90,7 +93,7 @@ const SKILLS = [
     current: (s) => pick(SKILLS[2].list(s), chosen.search || s.embedding?.model),
     view(s) {
       const e = s.embedding, m = this.current(s);
-      if (!e) return { tone: 'problem', word: 'Unavailable', model: m };
+      if (!e) return starting(s, m);
       if (['loading', 'busy'].includes(e.status)) return { tone: 'working', word: e.status === 'busy' ? 'Busy' : 'Waking up', model: m };
       if (e.status === 'ready' && e.model === m.id) return { tone: 'ready', word: 'Ready', model: m, extra: [['moon', 'Sleep', () => c().unloadEmbedding(), busy(s)]] };
       if (!m.installed) return { tone: 'attention', word: 'Needs download', model: m,
@@ -111,7 +114,7 @@ const SKILLS = [
     current: (s) => pick(SKILLS[3].list(s), chosen.backgrounds || s.image?.model),
     view(s) {
       const img = s.image, m = this.current(s);
-      if (!img) return { tone: 'problem', word: 'Unavailable', model: m };
+      if (!img) return starting(s, m);
       const installed = (id) => img.installed?.includes(id);
       if (img.status === 'busy') return { tone: 'working', word: 'Painting', model: m };
       if (img.status === 'incompatible') return { tone: 'problem', word: 'Not on this Mac', model: m };
@@ -136,7 +139,7 @@ const SKILLS = [
     current: (s) => models(s).find((m) => m.capability === 'vision'),
     view(s) {
       const v = s.vision, m = this.current(s);
-      if (!v || !m) return { tone: 'problem', word: 'Unavailable', model: m };
+      if (!v || !m) return starting(s, m);
       const ocr = models(s).find((x) => x.capability === 'ocr');
       const extra = ocr && !ocr.installed ? [['scan', 'Add page checking', () => c().install(ocr.id), anyDownload(s)]] : [];
       if (v.status === 'busy') return { tone: 'working', word: 'Looking', model: m };
