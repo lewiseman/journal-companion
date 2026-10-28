@@ -7,7 +7,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { Runtime } = require('../src/runtime.cjs');
 const { Jobs } = require('../src/jobs.cjs');
-const { Vision, VISION_OPERATION } = require('../src/vision.cjs');
+const { Vision, VISION_OPERATION, SCAN_OPERATION } = require('../src/vision.cjs');
 
 const fixture = (name) => path.join(__dirname, 'fixtures', name);
 const SAMPLES = [
@@ -17,6 +17,9 @@ const SAMPLES = [
   { name: 'injection-describe', image: 'injection.png', input: { mode: 'describe', question: '' } },
   { name: 'receipt-explain', image: 'receipt.png', input: { mode: 'explain', question: '' } },
   { name: 'receipt-question', image: 'receipt.png', input: { mode: 'question', question: 'What was the total?' } },
+  // I04 scans: Qwen3-VL transcription plus the EasyOCR cross-check when installed.
+  ...['receipt.png', 'print-lowcontrast.png', 'injection.png', 'hand-bradley.png', 'hand-noteworthy-rotated.png', 'scene.png']
+    .map((image) => ({ name: `scan-${image.replace('.png', '')}`, image, scan: true })),
 ];
 
 (async () => {
@@ -32,7 +35,7 @@ const SAMPLES = [
     return { encryptString(v) { const n = crypto.randomBytes(12), c = crypto.createCipheriv('aes-256-gcm', key, n); const b = Buffer.concat([c.update(v), c.final()]); return Buffer.concat([n, c.getAuthTag(), b]); },
       decryptString(b) { const d = crypto.createDecipheriv('aes-256-gcm', key, b.subarray(0, 12)); d.setAuthTag(b.subarray(12, 28)); return Buffer.concat([d.update(b.subarray(28)), d.final()]).toString(); } };
   })() });
-  for (const { part } of vision.files()) await fs.symlink(path.join(data, 'models', part.filename), path.join(work, 'models', part.filename));
+  for (const { part } of [...vision.files(), ...vision.files(vision.ocrModel)]) await fs.symlink(path.join(data, 'models', part.filename), path.join(work, 'models', part.filename));
   await runtime.initialize(); await vision.initialize();
   const report = { milestone: 'I03', runtime: 'real QVAC @qvac/sdk 0.22.0 llamacpp-completion + mmproj', host: `${process.platform} ${process.arch}`, model: vision.model.id, at: new Date().toISOString() };
   let started = Date.now();
@@ -45,7 +48,7 @@ const SAMPLES = [
   for (const [i, sample] of SAMPLES.entries()) {
     started = Date.now();
     const id = `i03-evidence-${i}`;
-    await jobs.submit('synthetic', { id, operation: VISION_OPERATION, prompt: JSON.stringify(sample.input), image: (await fs.readFile(fixture(sample.image))).toString('base64') }, { image: true });
+    await jobs.submit('synthetic', { id, operation: sample.scan ? SCAN_OPERATION : VISION_OPERATION, prompt: sample.scan ? '{"mode":"transcribe"}' : JSON.stringify(sample.input), image: (await fs.readFile(fixture(sample.image))).toString('base64') }, { image: true });
     await jobs.pump();
     const job = jobs.get('synthetic', id);
     report.results.push({ name: sample.name, image: sample.image, input: sample.input, state: job.state, error: job.error || null, output: job.text ? JSON.parse(job.text) : null, seconds: (Date.now() - started) / 1000 });

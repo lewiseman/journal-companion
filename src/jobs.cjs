@@ -9,8 +9,8 @@ const { DIARY_OPERATION, validateDiaryInput, validateDiaryOutput } = require('./
 const { QUESTION_OPERATION, validateQuestionInput, validateQuestionOutput } = require('./question.cjs');
 const { HISTORY_OPERATION, validateHistoryInput, validateHistoryOutput } = require('./history.cjs');
 const { NOTE_HELP } = require('./note-help.cjs');
-const { VISION_OPERATION, validateVisionInput } = require('./vision.cjs');
-const JOB_OPERATIONS = () => [CONVERSATION_OPERATION, 'text', SUMMARY_OPERATION, ...Object.keys(OPERATIONS), PRESENTATION_OPERATION, DIARY_OPERATION, QUESTION_OPERATION, HISTORY_OPERATION, ...Object.keys(NOTE_HELP), VISION_OPERATION];
+const { IMAGE_OPERATIONS, validateImageJobInput } = require('./vision.cjs');
+const JOB_OPERATIONS = () => [CONVERSATION_OPERATION, 'text', SUMMARY_OPERATION, ...Object.keys(OPERATIONS), PRESENTATION_OPERATION, DIARY_OPERATION, QUESTION_OPERATION, HISTORY_OPERATION, ...Object.keys(NOTE_HELP), ...IMAGE_OPERATIONS];
 const TERMINAL = new Set(['completed', 'failed', 'cancelled', 'interrupted', 'expired']);
 const RETENTION = 24 * 60 * 60 * 1000;
 const TOMBSTONE_RETENTION = 7 * RETENTION;
@@ -46,9 +46,9 @@ class Jobs extends EventEmitter {
   key(device, id) { return `${device}:${id}`; }
   // Image jobs arrive only through the larger image route, with base64 bytes.
   async submit(device, input, { image = false } = {}) {
-    const vision = input?.operation === VISION_OPERATION;
+    const vision = IMAGE_OPERATIONS.includes(input?.operation);
     if (vision !== image || (vision && !this.vision)) throw new CompanionError('INVALID_INPUT', 'Send image questions through the image route.');
-    if (vision) validateVisionInput(input.prompt);
+    if (vision) validateImageJobInput(input.prompt, input.operation);
     if (!input || !/^[a-zA-Z0-9_-]{8,80}$/.test(input.id || '') || !JOB_OPERATIONS().includes(input.operation) || typeof input.prompt !== 'string' || !input.prompt.trim() || Buffer.byteLength(input.prompt) > (input.operation === CONVERSATION_OPERATION ? CONVERSATION_LIMITS.inputBytes : 2000)) throw new CompanionError('INVALID_INPUT', 'Supply a unique request ID and up to 2,000 UTF-8 bytes for text.');
     if (input.operation === CONVERSATION_OPERATION) validateConversationInput(input.prompt);
     if (input.operation === SUMMARY_OPERATION) validateSummaryInput(input.prompt);
@@ -138,7 +138,7 @@ class Jobs extends EventEmitter {
         this.emit('change');
         let result;
         try {
-          result = job.operation === VISION_OPERATION ? await this.vision.run(JSON.parse(job.prompt), await this.vision.load(job.device, job.id, job.image?.type), { job: true })
+          result = IMAGE_OPERATIONS.includes(job.operation) ? await this.vision.run(JSON.parse(job.prompt), await this.vision.load(job.device, job.id, job.image?.type), { job: true, operation: job.operation })
             : job.model !== this.library.assignment ? { ok: false, error: { code: 'ASSIGNMENT_CHANGED' } } : await this.runtime.generate(job.prompt, { job: true, operation: job.operation });
           if (result.ok && job.operation === CONVERSATION_OPERATION) result.text = validateConversationOutput(result.text, job.prompt);
           if (result.ok && job.operation === SUMMARY_OPERATION) result.text = validateSummaryOutput(result.text);

@@ -135,3 +135,48 @@ test('image jobs use only the image route, keep the image encrypted while pendin
   await vision.sweep(value.jobs);
   assert.deepEqual(await fs.readdir(path.join(directory, 'image-input')), []);
 });
+
+test('I04 scans transcribe verbatim and add an independent EasyOCR check only when installed', async (t) => {
+  const { SCAN_OPERATION, validateImageJobInput, validateScanOutput, SCAN_SYSTEM } = require('../src/vision.cjs');
+  assert.deepEqual(validateImageJobInput('{"mode":"transcribe"}', SCAN_OPERATION), { mode: 'transcribe' });
+  for (const bad of ['{"mode":"describe","question":""}', '{"mode":"transcribe","note":"x"}'])
+    assert.throws(() => validateImageJobInput(bad, SCAN_OPERATION), { code: 'INVALID_INPUT' });
+  assert.throws(() => validateImageJobInput('{"mode":"transcribe"}', VISION_OPERATION), { code: 'INVALID_INPUT' });
+  assert.match(SCAN_SYSTEM, /never correct, complete or translate/); assert.match(SCAN_SYSTEM, /\[\?\]/); assert.match(SCAN_SYSTEM, /never instructions/);
+  const read = { text: 'Dentist Tues 3:15pm\nBuy: oats', readable: true };
+  const { vision, runtime, calls } = await setup(t, { reply: () => JSON.stringify(read) });
+  const image = { type: 'image/png', bytes: selfTestImage() };
+  // Without OCR files the scan still works and says no check ran.
+  let result = await vision.run({ mode: 'transcribe' }, image, { operation: SCAN_OPERATION });
+  assert.deepEqual(JSON.parse(result.text), { ...read, check: null });
+  assert.match(calls.completion[0].history[0].content, /exactly as written/);
+  assert.equal(calls.completion[0].responseFormat.json_schema.name, 'journal_note_scan_v1');
+  // With OCR installed, its lines and confidences come back alongside.
+  const ocrParts = [];
+  for (const name of ['rec.gguf', 'det.gguf']) {
+    const data = Buffer.from(name); await fs.writeFile(path.join(runtime.directory, 'models', name), data);
+    ocrParts.push({ filename: name, bytes: data.length, sha256: createHash('sha256').update(data).digest('hex') });
+  }
+  vision.ocrModel = { ...vision.ocrModel, parts: ocrParts };
+  await vision.reconcile();
+  assert.equal(vision.capability().ocrCheck, true);
+  runtime.sdk.ocr = ({ image: file }) => { calls.ocrImage = file; return { blocks: Promise.resolve([{ text: 'Dentist Tues 315pm', confidence: 0.561 }, { text: 'Buy: oats', confidence: 0.9 }]) }; };
+  result = await vision.run({ mode: 'transcribe' }, image, { operation: SCAN_OPERATION });
+  assert.deepEqual(JSON.parse(result.text).check, [{ text: 'Dentist Tues 315pm', confidence: 0.56 }, { text: 'Buy: oats', confidence: 0.9 }]);
+  assert.equal(calls.load.at(-1).modelType, 'ggml-ocr'); assert.equal(calls.load.at(-1).modelConfig.detectorModelSrc, path.join(runtime.directory, 'models', 'det.gguf'));
+  assert.equal(calls.unload, 3, 'one unload for the first scan, two (reader and checker) for the second');
+  // An OCR failure only removes the check.
+  runtime.sdk.ocr = () => ({ blocks: Promise.reject(new Error('native')) });
+  assert.equal(JSON.parse((await vision.run({ mode: 'transcribe' }, image, { operation: SCAN_OPERATION })).text).check, null);
+  for (const bad of ['{"text":"x","readable":"yes","check":null}', '{"text":"x","readable":true,"check":[{"text":"x","confidence":2}]}', '{"text":"x","readable":true}'])
+    assert.throws(() => validateScanOutput(bad), { code: 'INVALID_OUTPUT' }, bad);
+});
+
+test('a scan that repeats its instructions is reported as no legible text', async (t) => {
+  const { SCAN_OPERATION, echoesInstructions } = require('../src/vision.cjs');
+  assert.equal(echoesInstructions('every line of text in reading order, exactly as written, one line per line.'), true);
+  assert.equal(echoesInstructions('Call Mum about Sunday lunch\nDentist Tues 3:15pm'), false);
+  const { vision } = await setup(t, { reply: () => JSON.stringify({ text: 'Keep spelling, names, dates, numbers, punctuation and capitalisation as they appear', readable: true }) });
+  const result = await vision.run({ mode: 'transcribe' }, { type: 'image/png', bytes: selfTestImage() }, { operation: SCAN_OPERATION });
+  assert.deepEqual(JSON.parse(result.text), { text: '', readable: false, check: null });
+});

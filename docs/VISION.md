@@ -41,3 +41,26 @@ node scripts/verify-vision.cjs /absolute/new/empty/dir "$HOME/Library/Applicatio
 - Only exercised with the synthetic client in this repository (`verify-vision.cjs`); no packaged-app or phone-in-the-loop run yet.
 - The server's 10 s request timeout bounds uploads: a slow network may need to retry a large image.
 - `vision.json` remembers the self-test per model ID; replacing the files with other bytes of the same size is caught at request time by SHA-256 verification, not by re-running the self-test.
+
+# I04 page scanning
+
+`scan-note-image` uses the same image route, encrypted pending storage, readiness (`ready` after the self-test), job lifecycle and per-request load/unload as `ask-note-image`. The prompt is exactly `{"mode":"transcribe"}`.
+
+## Choosing the reader (tested, not assumed)
+
+QVAC 0.22 offers `ggml-ocr` (EasyOCR CRAFT detector + Latin CRNN, or DocTR) and the I03 vision model. Both were run on the same printed, low-contrast, prompt-injection and handwriting-style samples ([scan-evidence.json](scan-evidence.json) → `engineComparison`):
+
+- **Qwen3-VL 2B** transcribed every sample exactly, including the two handwriting-style fonts and a 7° rotation.
+- **EasyOCR** split lines and misread `TOTAL`→`IOIAL`, `14:30`→`14.30`, `Dentist`→`pentist`, `3:15pm`→`315pm`, but it reports a per-line confidence and fails in different ways.
+
+So Qwen3-VL produces the transcription, with a strict verbatim instruction: never correct, complete or translate, and use `[?]` for unreadable parts. When **EasyOCR · Latin** (a new optional registry download, ~99 MB, pinned blobs/SHA-256 from `@qvac/inference` 0.22) is installed, it reads the same page independently. Its lines and confidences are returned as `check`. The phone flags numbers and capitalised words that the two readers disagree on; the check never changes text. OCR failure only removes the check (`check: null`). Capability status adds `scanContract: 1`, `scanLimits` and `ocrCheck`.
+
+Output: `{text ≤6000 chars, readable, check: [{text, confidence}] | null}` (≤12 KB).
+
+## Failure found and fixed during verification
+
+On an image with no text, Qwen3-VL answered with its own instructions. The prompt now asks for empty text, and any transcription sharing a six-word run with the instructions becomes `{text: '', readable: false}` (`echoesInstructions`). The re-run returns `readable: false`.
+
+## Limits
+
+The handwriting samples are **handwriting-style fonts**, not real handwriting. Real cursive, faint pencil, mixed layouts, tables and non-Latin scripts are untested; EasyOCR here is Latin/English only. Expect errors on real handwriting, which is why every scan is reviewed and edited on the phone before insertion. Scans take ~5–7 s with the cross-check (two model loads).

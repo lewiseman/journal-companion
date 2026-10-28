@@ -30,3 +30,16 @@ render("receipt.png", 700, 900) {
   text("Flat white        3.40", 60, 620, 24, "Courier"); text("Almond croissant  2.95", 60, 580, 24, "Courier"); text("Orange juice      2.20", 60, 540, 24, "Courier")
   text("TOTAL             8.55", 60, 460, 28, "Courier-Bold"); text("Thank you, Ana!", 60, 380, 24, "Courier")
 }
+func hand(_ name: String, _ font: String, _ lines: [String], rotate: CGFloat = 0, ink: NSColor = .black, paper: NSColor = .white) {
+  render(name, 900, 600) {
+    paper.setFill(); NSRect(x: 0, y: 0, width: 900, height: 600).fill()
+    let t = NSAffineTransform(); t.translateX(by: 450, yBy: 300); t.rotate(byDegrees: rotate); t.translateX(by: -450, yBy: -300); t.concat()
+    for (i, line) in lines.enumerated() {
+      (line as NSString).draw(at: NSPoint(x: 60, y: 480 - CGFloat(i) * 80), withAttributes: [.font: NSFont(name: font, size: 44) ?? NSFont.systemFont(ofSize: 44), .foregroundColor: ink])
+    }
+  }
+}
+let handLines = ["Call Mum about Sunday lunch", "Dentist Tues 3:15pm", "Buy: oats, lemons, 2 batteries", "Ideas for Priya's birthday?"]
+hand("hand-bradley.png", "Bradley Hand", handLines)
+hand("hand-noteworthy-rotated.png", "Noteworthy-Light", handLines, rotate: 7)
+hand("print-lowcontrast.png", "Helvetica", ["Meeting moved to 14:30", "Room B12, bring the Q3 report", "Budget: 4,250 EUR"], ink: NSColor(white: 0.55, alpha: 1), paper: NSColor(white: 0.85, alpha: 1))
