@@ -5,6 +5,8 @@ const { EventEmitter } = require('node:events');
 const { CompanionError } = require('./model.cjs');
 
 const VERSION = 1;
+// Base64 of one image of at most 3 MB plus its small JSON envelope.
+const IMAGE_JOB_BYTES = 4.2 * 1024 * 1024;
 const digest = (value) => crypto.createHash('sha256').update(value).digest('hex');
 const random = () => crypto.randomBytes(32).toString('base64url');
 const canonical = (device, method, route, nonce, body) => `v1\n${device}\n${method}\n${route}\n${nonce}\n${digest(body)}`;
@@ -144,7 +146,7 @@ class DeviceService extends EventEmitter {
       return { state: p.state, id: p.id };
     }
     const id = this.authenticate(req, raw);
-    if (req.method === 'GET' && route === '/v1/status') return { v: VERSION, recovery: 1, id: this.identity.id, name: os.hostname().slice(0, 48), transport: 'connected', capabilities: [this.library.capability(), ...(this.voice ? [this.voice.speech.capability(), { id: 'speech', implemented: false, status: 'unavailable', reason: 'Read replies on screen. Speech synthesis is not enabled.' }] : [])] };
+    if (req.method === 'GET' && route === '/v1/status') return { v: VERSION, recovery: 1, id: this.identity.id, name: os.hostname().slice(0, 48), transport: 'connected', capabilities: [this.library.capability(), ...(this.jobs.vision ? [this.jobs.vision.capability()] : []), ...(this.voice ? [this.voice.speech.capability(), { id: 'speech', implemented: false, status: 'unavailable', reason: 'Read replies on screen. Speech synthesis is not enabled.' }] : [])] };
     if (req.method === 'POST' && route === '/v1/disconnect') { this.seen.delete(id); this.emit('change'); return { ok: true }; }
     if (req.method === 'POST' && route === '/v1/forget') return this.revoke(id);
     const voiceMatch = /^\/v1\/voice\/([a-zA-Z0-9_-]{8,80})(\/cancel|\/ack)?$/.exec(route);
@@ -154,6 +156,7 @@ class DeviceService extends EventEmitter {
       if (req.method === 'POST' && voiceMatch[2] === '/ack') return this.voice.ack(id, voiceMatch[1]);
     }
     if (req.method === 'POST' && route === '/v1/jobs') return this.jobs.submit(id, body);
+    if (req.method === 'POST' && route === '/v1/image-jobs') return this.jobs.submit(id, body, { image: true });
     const match = /^\/v1\/jobs\/([a-zA-Z0-9_-]{8,80})(\/cancel|\/ack)?$/.exec(route);
     if (match) {
       if (req.method === 'GET' && !match[2]) return this.jobs.get(id, match[1]);
@@ -165,7 +168,7 @@ class DeviceService extends EventEmitter {
   async handle(req, res) {
     try {
       const chunks = []; let bytes = 0;
-      for await (const chunk of req) { bytes += chunk.length; if (bytes > (req.url === '/v1/jobs' ? 32768 : 8192)) throw new CompanionError('INVALID_INPUT', 'Request too large.'); chunks.push(chunk); }
+      for await (const chunk of req) { bytes += chunk.length; if (bytes > (req.url === '/v1/image-jobs' ? IMAGE_JOB_BYTES : req.url === '/v1/jobs' ? 32768 : 8192)) throw new CompanionError('INVALID_INPUT', 'Request too large.'); chunks.push(chunk); }
       const raw = Buffer.concat(chunks).toString('utf8');
       const result = await this.route(req, raw);
       this.reply(res, 200, result);

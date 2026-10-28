@@ -5,7 +5,7 @@ let pairingExpires = 0;
 let selectedModelId;
 let selectedSpeechModelId;
 // Download-only capabilities and the future feature each one is kept for.
-const futureUse = { image: 'image generation', transcription: 'speech-to-text', speech: 'read-aloud' };
+const futureUse = { image: 'image generation', transcription: 'speech-to-text', speech: 'read-aloud', vision: 'note image questions' };
 const labels = { unavailable: ['AI unavailable', 'SETUP NEEDED'], loading: ['Getting things ready', 'LOADING'], ready: ['Your companion is ready', 'READY'], working: ['A thought is taking shape', 'WORKING'], failed: ['AI needs attention', 'FAILED'] };
 function render(next) {
   state = next;
@@ -28,6 +28,8 @@ function render(next) {
   $('unload').hidden = state.status !== 'ready'; $('unload').disabled = busy;
   $('clear').disabled = state.status === 'working';
   $('speech-state').textContent = state.speech ? `${state.speech.status} · ${state.speech.reason}` : 'Speech unavailable';
+  $('vision-state').textContent = state.vision ? `${state.vision.status} · ${state.vision.reason}` : 'Image input needs secure storage.';
+  $('test-vision').disabled = !state.vision || ['needs_download', 'incompatible', 'busy'].includes(state.vision.status) || busy;
   const speechModels = (state.library?.models || []).filter((m) => m.engine === 'whispercpp-transcription' && !m.filename.includes('silero') && !m.filename.includes('.en-'));
   if (!speechModels.some((m) => m.id === selectedSpeechModelId)) selectedSpeechModelId = state.speech?.model || speechModels[0]?.id;
   const speechPicker = $('speech-model-select');
@@ -54,7 +56,7 @@ function renderModels(disabled, downloading, unsupported) {
     picker.replaceChildren(...[
       ['Popular', 'Writing · popular choices'], ['New', 'Writing · newer & interesting'],
       ['Lightweight', 'Writing · lightweight'], ['transcription', 'Speech to text · Whisper available'],
-      ['speech', 'Text to speech · download only'], ['image', 'Image generation · download only'],
+      ['speech', 'Text to speech · download only'], ['image', 'Image generation · download only'], ['vision', 'Image understanding · after self-test'],
     ].map(([collection, label]) => {
       const group = document.createElement('optgroup'); group.label = label;
       for (const model of models.filter((entry) => Object.hasOwn(futureUse, collection) ? entry.capability === collection : entry.capability === 'text' && entry.collection === collection)) {
@@ -74,7 +76,7 @@ function renderModels(disabled, downloading, unsupported) {
   $('model-name').textContent = model.name;
   $('model-meta').textContent = `${model.quantization} · ${size} download${files} · ${model.license}`;
   $('model-description').textContent = model.description;
-  $('model-guidance').textContent = `${model.tier} · ${model.memoryGB} GB+ system memory suggested. ${image ? `${model.engine === 'whispercpp-transcription' ? 'Whisper and Silero VAD enable Android voice capture.' : `Download weights now; ${future} will be added later.`}${model.source === 'registry' ? ' Downloads from peers in the QVAC model registry.' : ''}` : model.fitHint || 'Speed depends on your Mac.'}`;
+  $('model-guidance').textContent = `${model.tier} · ${model.memoryGB} GB+ system memory suggested. ${image ? `${model.engine === 'whispercpp-transcription' ? 'Whisper and Silero VAD enable Android voice capture.' : model.capability === 'vision' ? 'Downloads the model and its image projector; run the image self-test before phones can ask about note images.' : `Download weights now; ${future} will be added later.`}${model.source === 'registry' ? ' Downloads from peers in the QVAC model registry.' : ''}` : model.fitHint || 'Speed depends on your Mac.'}`;
   $('download').textContent = model.installed ? 'Download a fresh copy ↓' : `${image ? 'Download' : 'Download & use'} · ${size} ↓`;
   $('use-model').hidden = !model.installed || image;
   $('use-model').textContent = model.loaded ? 'Currently loaded' : 'Use downloaded model';
@@ -168,4 +170,5 @@ $('pair').onclick = async () => {
 setInterval(() => window.companion.state().then(render), 5000);
 
 $('speech-model-select').addEventListener('change', (event) => { selectedSpeechModelId = event.target.value; render(state); });
+$('test-vision').addEventListener('click', () => act(() => window.companion.testVision()));
 $('load-speech').addEventListener('click', () => act(() => window.companion.loadSpeech(selectedSpeechModelId)));

@@ -277,3 +277,23 @@ test('presentation jobs use signed durable requests, cancel fences and bounded e
   await until(() => f.jobs.get(p.id, bad.id).state === 'failed');
   assert.equal(f.jobs.get(p.id, bad.id).error, 'INVALID_OUTPUT');
 });
+
+test('I03: image questions use a separate signed route with a larger body limit and advertise vision status', async (t) => {
+  const { service, jobs } = await fixture(t);
+  const { VISION_OPERATION, selfTestImage } = require('../src/vision.cjs');
+  const submitted = [];
+  jobs.vision = { capability: () => ({ id: 'vision', status: 'ready', operations: [VISION_OPERATION], visionContract: 1 }), sweep: async () => {} };
+  const original = jobs.submit.bind(jobs);
+  jobs.submit = async (device, body, options) => { submitted.push(options?.image === true); if (options?.image) return { id: body.id, state: 'queued' }; return original(device, body, options); };
+  const { p } = await enroll(service);
+  const status = await auth(service, p, 'GET', '/v1/status');
+  assert.equal(status.value.capabilities.find((c) => c.id === 'vision').status, 'ready');
+  const image = Buffer.concat([selfTestImage(), Buffer.alloc(200000)]).toString('base64');
+  const body = { id: 'image-route-1', operation: VISION_OPERATION, prompt: '{"mode":"describe","question":""}', image };
+  assert.equal((await auth(service, p, 'POST', '/v1/jobs', body)).value.error.code, 'INVALID_INPUT');
+  const accepted = await auth(service, p, 'POST', '/v1/image-jobs', body);
+  assert.equal(accepted.status, 200); assert.equal(accepted.value.state, 'queued');
+  assert.deepEqual(submitted, [true]); // the text route refused the large body before submission
+  const tooLarge = await auth(service, p, 'POST', '/v1/image-jobs', { ...body, image: 'A'.repeat(4.3 * 1024 * 1024) }).catch((e) => ({ error: e }));
+  assert.ok(tooLarge.error || tooLarge.value.error.code === 'INVALID_INPUT');
+});

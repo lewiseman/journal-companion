@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('companion', Object.freeze({
   choose: (id) => modelAction('choose', id),
   load: (id) => modelAction('load', id),
   loadSpeech: (id) => modelAction('loadSpeech', id),
+  testVision: () => ipcRenderer.invoke('companion:testVision'),
   unload: () => ipcRenderer.invoke('companion:unload'),
   generate: (prompt) => ipcRenderer.invoke('companion:generate', prompt),
   install: (id) => modelAction('install', id),
