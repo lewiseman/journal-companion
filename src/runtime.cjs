@@ -12,6 +12,7 @@ const { PRESENTATION_OPERATION, PRESENTATION_LIMITS, PRESENTATION_SYSTEM, valida
 const { DIARY_OPERATION, DIARY_LIMITS, DIARY_SYSTEM, validateDiaryInput, validateDiaryOutput, diaryResponseFormat } = require('./diary.cjs');
 const { QUESTION_OPERATION, QUESTION_LIMITS, QUESTION_SYSTEM, validateQuestionInput, validateQuestionOutput, questionResponseFormat } = require('./question.cjs');
 const { HISTORY_OPERATION, HISTORY_LIMITS, HISTORY_SYSTEM, validateHistoryInput, validateHistoryOutput, historyResponseFormat } = require('./history.cjs');
+const { REFLECTION_OPERATION, REFLECTION_LIMITS, REFLECTION_SYSTEM, validateReflectionInput, validateReflectionOutput } = require('./reflection.cjs');
 
 function writingModel(id) {
   const model = getModel(id);
@@ -157,26 +158,28 @@ class Runtime extends EventEmitter {
     const summary = operation === SUMMARY_OPERATION;
     if (summary) validateSummaryInput(prompt);
     const presentation = operation === PRESENTATION_OPERATION, diary = operation === DIARY_OPERATION, question = operation === QUESTION_OPERATION, history = operation === HISTORY_OPERATION;
-    const transform = Object.hasOwn(OPERATIONS, operation), boundedText = conversation || summary || transform || presentation || diary || question || history;
-    const limits = conversation ? CONVERSATION_LIMITS : history ? HISTORY_LIMITS : question ? QUESTION_LIMITS : diary ? DIARY_LIMITS : presentation ? PRESENTATION_LIMITS : transform ? TRANSFORM_LIMITS : SUMMARY_LIMITS;
+    const reflection = operation === REFLECTION_OPERATION;
+    const transform = Object.hasOwn(OPERATIONS, operation), boundedText = conversation || summary || transform || presentation || diary || question || history || reflection;
+    const limits = reflection ? REFLECTION_LIMITS : conversation ? CONVERSATION_LIMITS : history ? HISTORY_LIMITS : question ? QUESTION_LIMITS : diary ? DIARY_LIMITS : presentation ? PRESENTATION_LIMITS : transform ? TRANSFORM_LIMITS : SUMMARY_LIMITS;
     if (transform) validateTransformInput(prompt, operation);
     if (presentation) validatePresentationInput(prompt);
     if (diary) validateDiaryInput(prompt);
     if (question) validateQuestionInput(prompt);
     if (history) validateHistoryInput(prompt);
+    if (reflection) validateReflectionInput(prompt);
     return this.operation(async () => {
       if (!this.modelId || this.state.status !== 'ready') throw new CompanionError('NOT_READY', 'Load the model before sending a request.');
       this.cancelRequested = false;
       this.update({ status: 'working', detail: 'Writing on this Mac…', error: null });
       const run = this.sdk.completion({
         modelId: this.modelId, history: conversation ? conversationMessages(prompt) : [
-          { role: 'system', content: conversation ? CONVERSATION_SYSTEM : history ? HISTORY_SYSTEM : question ? QUESTION_SYSTEM : diary ? DIARY_SYSTEM : presentation ? PRESENTATION_SYSTEM : transform ? transformSystem(operation) : summary ? SUMMARY_SYSTEM : 'You are a helpful writing assistant. Give a brief, clear answer.' },
-          { role: 'user', content: conversation || transform || presentation || diary || question || history ? prompt : summary ? JSON.stringify({ note: prompt }) : prompt.trim() },
+          { role: 'system', content: reflection ? REFLECTION_SYSTEM : conversation ? CONVERSATION_SYSTEM : history ? HISTORY_SYSTEM : question ? QUESTION_SYSTEM : diary ? DIARY_SYSTEM : presentation ? PRESENTATION_SYSTEM : transform ? transformSystem(operation) : summary ? SUMMARY_SYSTEM : 'You are a helpful writing assistant. Give a brief, clear answer.' },
+          { role: 'user', content: reflection ? JSON.stringify({ thought: prompt }) : conversation || transform || presentation || diary || question || history ? prompt : summary ? JSON.stringify({ note: prompt }) : prompt.trim() },
         ], stream: true, kvCache: false,
         ...(presentation ? { responseFormat: presentationResponseFormat(prompt) } : diary ? { responseFormat: diaryResponseFormat() } : question ? { responseFormat: questionResponseFormat() } : history ? { responseFormat: historyResponseFormat() } : {}),
-        // Questions vary so that asking again gives a fresh one; other bounded
-        // operations stay deterministic. The grammar and phone checks still apply.
-        generationParams: { predict: limits.outputTokens, temp: question ? 0.7 : boundedText ? 0 : 0.4, seed: question ? randomInt(2 ** 31) : 42,
+        // Questions and reflections vary so that asking again gives a fresh one;
+        // other bounded operations stay deterministic. Phone checks still apply.
+        generationParams: { predict: limits.outputTokens, temp: question ? 0.7 : reflection ? 0.4 : boundedText ? 0 : 0.4, seed: question || reflection ? randomInt(2 ** 31) : 42,
           ...(this.model.reasoningBudget === 0 ? { reasoning_budget: 0 } : {}) },
       });
       this.activeRun = run;
@@ -208,7 +211,7 @@ class Runtime extends EventEmitter {
       if (boundedText) {
         if (stopReason === 'length') return { ok: false, error: { code: 'OUTPUT_LIMIT', message: `The result reached its ${limits.outputTokens}-token limit. No partial result was returned; try a shorter passage.` } };
         if (stopReason === 'cancelled') return { ok: false, error: { code: 'CANCELLED', message: 'Summary cancelled.' } };
-        try { text = conversation ? validateConversationOutput(text, prompt) : history ? validateHistoryOutput(text) : question ? validateQuestionOutput(text) : diary ? validateDiaryOutput(text) : presentation ? validatePresentationOutput(text) : transform ? validateTransformOutput(text) : validateSummaryOutput(text); }
+        try { text = reflection ? validateReflectionOutput(text) : conversation ? validateConversationOutput(text, prompt) : history ? validateHistoryOutput(text) : question ? validateQuestionOutput(text) : diary ? validateDiaryOutput(text) : presentation ? validatePresentationOutput(text) : transform ? validateTransformOutput(text) : validateSummaryOutput(text); }
         catch (error) { return { ok: false, error: { code: error.code, message: error.message } }; }
       }
       return { ok: true, text };
