@@ -57,6 +57,8 @@ So Qwen3-VL produces the transcription, with a strict verbatim instruction: neve
 
 Output: `{text ≤6000 chars, readable, check: [{text, confidence}] | null}` (≤12 KB).
 
+The packaged worker bundles only plugins listed in `qvac.config.json`, so `@qvac/sdk/ggml-ocr/plugin` is registered there and in the runtime config; `npm run bundle:runtime` then lists `@qvac/ocr-ggml` in `qvac/addons.manifest.json`.
+
 ## Failure found and fixed during verification
 
 On an image with no text, Qwen3-VL answered with its own instructions. The prompt now asks for empty text, and any transcription sharing a six-word run with the instructions becomes `{text: '', readable: false}` (`echoesInstructions`). The re-run returns `readable: false`.
