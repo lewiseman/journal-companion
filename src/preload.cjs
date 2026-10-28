@@ -9,6 +9,8 @@ const subscribe = (channel, callback) => {
 const modelAction = (name, id) => ipcRenderer.invoke(`companion:${name}`, ...(id === undefined ? [] : [id]));
 contextBridge.exposeInMainWorld('companion', Object.freeze({
   state: () => ipcRenderer.invoke('companion:state'),
+  theme: () => ipcRenderer.invoke('companion:theme'),
+  setTheme: (theme) => ipcRenderer.invoke('companion:setTheme', theme),
   download: (id) => modelAction('download', id),
   choose: (id) => modelAction('choose', id),
   load: (id) => modelAction('load', id),

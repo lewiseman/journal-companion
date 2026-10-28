@@ -6,6 +6,7 @@ import { phonesView } from './phones.js';
 import { skillsView } from './skills.js';
 import { createBook } from './book.js';
 import { bookSpreads } from './book-pages.js';
+import { appearanceButton } from './appearance.js';
 
 const BOOK_DONE = 'journal.book.done';
 const remember = () => { try { localStorage.setItem(BOOK_DONE, '1'); } catch {} };
@@ -29,7 +30,10 @@ for (const [key, iconName, label] of TABS) {
   tabs[key] = h('button', { class: 'tab', onclick: () => go(key) }, icon(iconName), h('span', { text: label }), pips[key]);
   rail.append(tabs[key]);
 }
+const [lookButton, lookSheet] = appearanceButton();
+document.body.append(lookSheet);
 rail.append(h('button', { class: 'tab', onclick: () => showBook() }, icon('book'), h('span', { text: 'Book' })),
+  lookButton,
   h('div', { class: 'rail-foot', title: 'Everything stays on this Mac and your home Wi-Fi.' }, icon('shield'), h('span', { text: 'Private' })));
 
 homeView(views.home, { go });

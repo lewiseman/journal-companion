@@ -41,6 +41,7 @@ const PATHS = {
   chat: `<path ${W} d="M4 5.4h16v10.8H10.4L6 20v-3.8H4Z"/><path d="M4 5.4h16v10.8H10.4L6 20v-3.8H4ZM8 9.6h8M8 12.4h5"/>`,
   tag: `<path ${W} d="M3.6 3.6h7.8l9 9-7.8 7.8-9-9Z"/><path d="M3.6 3.6h7.8l9 9-7.8 7.8-9-9Z"/><circle cx="8" cy="8" r="1.4"/>`,
   calendar: `<rect ${W} x="3.4" y="5" width="17.2" height="15.6" rx="2.2"/><rect x="3.4" y="5" width="17.2" height="15.6" rx="2.2"/><path d="M3.4 10h17.2M8 3v4M16 3v4M7.6 14h2M11 14h2M14.4 14h2M7.6 17h2"/>`,
+  theme: `<path ${W} d="M12 3a9 9 0 0 0 0 18Z"/><circle cx="12" cy="12" r="9"/><path d="M12 3v18"/>`,
   spark: `<path d="M12 3v3.6M12 17.4V21M3 12h3.6M17.4 12H21M5.6 5.6l2.6 2.6M15.8 15.8l2.6 2.6M18.4 5.6l-2.6 2.6M8.2 15.8l-2.6 2.6" stroke-width="2"/>`,
 };
 

@@ -33,7 +33,7 @@ The window opens with a welcome book, a desktop version of the phone's onboardin
 - **Phones** handles pairing, code checks and trusted phones.
 - **Skills** has one card per ability: Writing, Listening, Search, Backgrounds, Seeing and Websites. Each card has a one-tap recommended download, and every model is still available under "Choose another".
 
-States are shown with icons, colours and motion first. "Listen" buttons read the guidance aloud using macOS's offline voices. The renderer is plain ES modules in `src/renderer/js`, with no bundler.
+Use **Look** in the side bar to choose Light, Dark or Like my Mac. The choice is saved in `appearance.json` in the app's data folder. States are shown with icons, colours and motion first. "Listen" buttons read the guidance aloud using macOS's offline voices. The renderer is plain ES modules in `src/renderer/js`, with no bundler.
 
 The brand art comes from the Journal app's assets (`src/renderer/assets/art`). The bundled fonts are Poppins, Lora and Caveat, all under the SIL Open Font License; their licence files sit beside them in `src/renderer/assets/fonts`. `src/renderer-assets.cjs` serves only these renderer files, and only these types: html, css, js, ttf, webp, png and svg. The app icon is `assets/icon.icns`.
 

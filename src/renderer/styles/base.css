@@ -250,3 +250,24 @@ dialog.confirm .row { display: flex; justify-content: center; gap: 14px; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
 }
+
+/* ── Appearance sheet ──────────────────────────────────── */
+.appearance {
+  position: fixed; z-index: 40; left: 122px; bottom: 70px; padding: 18px 20px 20px;
+  -webkit-app-region: no-drag; animation: pop .3s var(--ease-spring); box-shadow: var(--shadow-lift);
+}
+.appearance-cards { display: flex; gap: 14px; }
+.theme-card {
+  position: relative; width: 132px; padding: 10px 10px 12px; border: 2px solid transparent; border-radius: 18px;
+  display: flex; flex-direction: column; align-items: center; gap: 6px; background: var(--paper);
+  color: var(--ink-soft); font-weight: 500; transition: transform .32s var(--ease-spring), border-color .2s;
+}
+.theme-card img { width: 100px; height: 100px; object-fit: contain; }
+.theme-card:hover { transform: translateY(-3px); }
+.theme-card[aria-checked='true'] { border-color: var(--primary); color: var(--ink); }
+.theme-check {
+  position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 15px; background: var(--primary); color: var(--on-primary); opacity: 0; transform: scale(.5);
+  transition: opacity .2s, transform .32s var(--ease-spring);
+}
+.theme-card[aria-checked='true'] .theme-check { opacity: 1; transform: none; }

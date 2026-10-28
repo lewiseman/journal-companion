@@ -15,6 +15,7 @@ const { Background } = require('./background.cjs');
 const { DeviceService } = require('./device-service.cjs');
 const { CompanionError, getModel } = require('./model.cjs');
 const { resolveAsset } = require('./renderer-assets.cjs');
+const { readTheme, saveTheme } = require('./appearance.cjs');
 
 // Developer credentials stay in the main process; .env files are never packaged.
 if (!app.isPackaged) {
@@ -61,6 +62,7 @@ else {
       const allowed = details.url.startsWith('journal://companion/');
       callback({ cancel: !allowed });
     });
+    nativeTheme.themeSource = await readTheme(app.getPath('userData'));
     window = new BrowserWindow({
       width: 1240, height: 840, minWidth: 900, minHeight: 680, backgroundColor: nativeTheme.shouldUseDarkColors ? '#17151d' : '#f2e7d2',
       title: 'Journal Companion', titleBarStyle: 'hiddenInset',
@@ -100,6 +102,11 @@ else {
     };
     const reconcile = async (action) => { const result = await action(); await library.reconcile(); publish(); return result; };
     handle('state', noArgs(snapshot));
+    handle('theme', noArgs(() => ({ ok: true, theme: nativeTheme.themeSource })));
+    handle('setTheme', (...args) => {
+      if (args.length !== 1 || typeof args[0] !== 'string') throw new CompanionError('INVALID_INPUT', 'Choose light, dark or system.');
+      return saveTheme(app.getPath('userData'), args[0]).then((theme) => { nativeTheme.themeSource = theme; return { ok: true, theme }; });
+    });
     handle('loadSpeech', withModel((model) => speech.load(model.id)));
     handle('loadEmbedding', withModel((model) => embedder.load(model.id)));
     handle('unloadEmbedding', noArgs(() => embedder.unload()));
