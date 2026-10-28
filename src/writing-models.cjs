@@ -65,7 +65,7 @@ module.exports = Object.freeze([{
   sha256: '7bb69bff3f48a7b642355d64a90e481182a7794707b3133890646b1efa778ff5',
   revision: 'ec0cbabd8dbff316f659876a50202295c3c4a314', license: 'Gemma Terms of Use',
 }, {
-  id: 'qwen3-4b-instruct-2507-q4_k_m@a06e946bb6b655725eafa393f4a9745d460374c9',
+  recommended: true, id: 'qwen3-4b-instruct-2507-q4_k_m@a06e946bb6b655725eafa393f4a9745d460374c9',
   name: 'Qwen3 · 4B Instruct 2507', collection: 'Popular', tier: 'Direct-answer writing',
   description: 'A Qwen3 instruction variant designed for direct answers without a separate thinking phase.',
   memoryGB: 8, fitHint: 'A compact starting point for writing on your 24 GB Mac.',
@@ -137,7 +137,7 @@ module.exports = Object.freeze([{
   sha256: '4de907d2d388a5508fb7cb443a06effe14cce3518b0a78d3bdd9e74d9edce989',
   revision: 'a7bc17204c8a326d6bd6e466e076959eddae2025', license: 'Apache 2.0',
 }, {
-  id: 'qwen2.5-coder-7b-instruct-q4_k_m@1f629da0c8bed16b9e50cee91c70693650e66c35',
+  recommended: true, id: 'qwen2.5-coder-7b-instruct-q4_k_m@1f629da0c8bed16b9e50cee91c70693650e66c35',
   name: 'Qwen2.5-Coder · 7B Instruct', collection: 'Coding', tier: 'Compact coding model',
   description: 'A compact Qwen coding model for simple HTML, CSS and small snippets, with room left for other apps.',
   memoryGB: 16, fitHint: 'A light coding option for your 24 GB Mac.',

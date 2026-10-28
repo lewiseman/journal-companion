@@ -8,7 +8,7 @@ const WHISPER = { capability: 'transcription', engine: 'whispercpp-transcription
 const REGISTRY = { source: 'registry', revision: 'qvac-registry' };
 
 module.exports = Object.freeze([{
-  ...WHISPER, id: 'whisper-large-v3-turbo@5359861c739e955e79d9a303bcbc70fb988958b1',
+  ...WHISPER, recommended: true, id: 'whisper-large-v3-turbo@5359861c739e955e79d9a303bcbc70fb988958b1',
   name: 'Whisper · Large v3 Turbo', quantization: 'F16', tier: 'Recommended transcription',
   description: 'OpenAI’s fast large Whisper for about 99 languages and translation to English. The accuracy and speed sweet spot on Apple Silicon.',
   memoryGB: 8, fitHint: 'Comfortable on a 24 GB Mac alongside a writing model.',

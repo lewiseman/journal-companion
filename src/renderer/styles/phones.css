@@ -1,0 +1,74 @@
+.head-tools { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+.phones-grid { display: grid; grid-template-columns: minmax(380px, 1.25fr) minmax(280px, 1fr); gap: 30px; align-items: start; }
+@media (max-width: 1080px) { .phones-grid { grid-template-columns: 1fr; } }
+.pair-card, .list-card { padding: 34px 28px 28px; min-height: 420px; }
+
+/* Pairing panel (shared with the book) */
+.pair-panel { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.pair-card .pair-panel { min-height: 360px; }
+.pair-panel > * { width: 100%; }
+.pair-idle { display: flex; flex-direction: column; align-items: center; gap: 30px; padding: 18px 0; }
+.pair-scene { display: flex; align-items: center; gap: 22px; color: var(--lilac); }
+.pair-phone { font-size: 84px; animation: bob 3s ease-in-out infinite; }
+.pair-mac { font-size: 100px; color: var(--plum); animation: bob 3s ease-in-out .5s infinite; }
+.pair-dots { width: 90px; height: 6px; background: radial-gradient(circle, var(--lilac) 3px, transparent 3.5px) 0 0 / 15px 6px repeat-x; animation: dots 1s linear infinite; }
+@keyframes dots { to { background-position: 15px 0; } }
+
+.pair-qr { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 22px; }
+.qr-paper { position: relative; padding: 16px 16px 34px; background: #fff; border-radius: 18px; box-shadow: var(--shadow-lift); transform: rotate(-1.5deg); animation: pop .45s var(--ease-spring); }
+.qr-img { display: block; width: 240px; height: 240px; image-rendering: pixelated; }
+.qr-note { position: absolute; left: 0; right: 0; bottom: 6px; font-size: 22px; color: #715b83; }
+.qr-side { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.qr-timer { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink-soft); }
+.qr-timer::before { inset: 6px; }
+.pair-code-area { flex-basis: 100%; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.pair-warn { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--honey); font-weight: 500; font-size: 13px; }
+.pair-code { width: 100%; min-height: 76px; resize: none; border: 1.5px dashed var(--paper-line); border-radius: 12px; background: var(--paper); padding: 10px; font: 11px/1.4 ui-monospace, monospace; color: var(--ink-soft); user-select: all; }
+
+.pair-ask { display: flex; flex-direction: column; align-items: center; gap: 16px; animation: pop .4s var(--ease-spring); }
+.ask-phone { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--lilac); }
+.ask-phone .icon { font-size: 66px; animation: ask-wobble 1.4s ease-in-out infinite; }
+.ask-name { font-size: 18px; color: var(--ink); }
+.ask-question { margin: 0; font: 400 24px/1.2 var(--font-title); }
+.code-tiles { display: flex; gap: 10px; justify-content: center; }
+.code-tile {
+  padding: 10px 12px; border-radius: 12px; background: var(--paper); box-shadow: inset 0 0 0 2px var(--paper-line), var(--shadow-soft);
+  font: 600 26px/1 ui-monospace, 'SF Mono', monospace; letter-spacing: 3px; color: var(--primary);
+}
+.ask-buttons { display: flex; gap: 34px; margin: 6px 0; }
+@keyframes ask-wobble { 25% { transform: rotate(-4deg); } 75% { transform: rotate(4deg); } }
+
+.pair-joined { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.joined-art { position: relative; font-size: 92px; color: var(--sage); animation: pop .5s var(--ease-spring); }
+.joined-check { position: absolute; right: -16px; bottom: 8px; width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; font-size: 26px; background: var(--sage); color: #fff; box-shadow: 0 0 0 4px var(--paper-raised); }
+.pair-joined .stamp { font-size: 20px; padding: 6px 16px; border-width: 3px; }
+.pair-joined strong { font: 400 22px var(--font-title); }
+.pair-problem { display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--terracotta); }
+.pair-problem .icon { font-size: 54px; }
+.pair-problem p { color: var(--ink); max-width: 340px; margin: 0; }
+
+/* In the book the page is narrow: stack and shrink. */
+.right-page .qr-img { width: min(200px, 50cqw, 30cqh); height: auto; }
+.right-page .qr-paper { padding: 10px 10px 28px; }
+.right-page .pair-qr { gap: 2cqh; }
+.right-page .qr-side { gap: 8px; }
+.right-page .qr-side { flex-direction: row; flex-wrap: wrap; justify-content: center; }
+.right-page .pair-scene .icon { font-size: 11cqh; }
+.right-page .code-tile { font-size: 3.2cqh; padding: 1.2cqh 1.4cqh; }
+.right-page .round-btn.big { width: 9cqh; height: 9cqh; font-size: 4.4cqh; }
+.right-page .ask-phone .icon { font-size: 9cqh; }
+.right-page .pair-idle { gap: 4cqh; }
+
+/* Trusted phones */
+.phone-list { display: flex; flex-direction: column; gap: 14px; }
+.phone-card { display: flex; align-items: center; gap: 16px; padding: 14px 16px; background: var(--paper); box-shadow: none; border: 1.5px solid var(--paper-line); }
+.phone-art { position: relative; font-size: 46px; color: var(--ink-faint); }
+.phone-card.online .phone-art { color: var(--lilac); }
+.phone-dot { position: absolute; right: -8px; top: -4px; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; background: var(--sleep-wash); color: var(--sleep); box-shadow: 0 0 0 3px var(--paper); }
+.phone-card.online .phone-dot { background: var(--sage); color: #fff; }
+.phone-meta { flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
+.phone-meta strong { font-size: 16px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.phone-card .remove { width: 44px; height: 44px; font-size: 20px; color: var(--terracotta); box-shadow: none; background: transparent; }
+.phone-card .remove:hover { background: var(--terracotta-wash); }
+.phone-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 60px 0; color: var(--ink-faint); opacity: .7; }
+.phone-empty .icon { font-size: 70px; } .phone-empty .hand { font-size: 26px; }

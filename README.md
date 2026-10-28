@@ -26,6 +26,17 @@ npm run make
 
 The app is created at `out/Journal Companion-darwin-arm64/Journal Companion.app`; `make` also creates a ZIP under `out/make/zip/darwin/arm64/`. This is an **unsigned local preview**, not a notarized release. Linux, Windows and Intel Macs are unsupported in this milestone. Renderer sandboxing is enabled in both development and packaged builds.
 
+## Look and feel
+
+The window opens with a welcome book, a desktop version of the phone's onboarding book. It has four spreads (hello, privacy, get a writing brain, pair a phone), and they perform the real setup. After that, three screens take over:
+- **Home** shows the phone ⇄ Mac bridge, the work running now, and today's finished slips.
+- **Phones** handles pairing, code checks and trusted phones.
+- **Skills** has one card per ability: Writing, Listening, Search, Backgrounds, Seeing and Websites. Each card has a one-tap recommended download, and every model is still available under "Choose another".
+
+States are shown with icons, colours and motion first. "Listen" buttons read the guidance aloud using macOS's offline voices. The renderer is plain ES modules in `src/renderer/js`, with no bundler.
+
+The brand art comes from the Journal app's assets (`src/renderer/assets/art`). The bundled fonts are Poppins, Lora and Caveat, all under the SIL Open Font License; their licence files sit beside them in `src/renderer/assets/fonts`. `src/renderer-assets.cjs` serves only these renderer files, and only these types: html, css, js, ttf, webp, png and svg. The app icon is `assets/icon.icns`.
+
 ## Privacy and files
 
 The app never reads the Flutter database. It sends no prompt or response to the internet. Desktop demo text stays in memory until clear or quit; accepted phone jobs use encrypted, bounded persistence described in the connection contract; OS swap/crash handling is outside this promise. Model selection, QVAC configuration/cache and downloaded weights are stored under Electron's `userData` directory (`~/Library/Application Support/Journal Companion` in a packaged normal launch). Selected external weights are read without modification. The UI never receives their filesystem path.

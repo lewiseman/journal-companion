@@ -1,0 +1,78 @@
+/* Brand tokens, ported from the Journal phone app (onboarding book, note papers, art palette). */
+@font-face { font-family: Poppins; src: url('../assets/fonts/Poppins-Regular.ttf') format('truetype'); font-weight: 400; }
+@font-face { font-family: Poppins; src: url('../assets/fonts/Poppins-Medium.ttf') format('truetype'); font-weight: 500; }
+@font-face { font-family: Poppins; src: url('../assets/fonts/Poppins-SemiBold.ttf') format('truetype'); font-weight: 600; }
+@font-face { font-family: Lora; src: url('../assets/fonts/Lora-Regular.ttf') format('truetype'); }
+@font-face { font-family: Caveat; src: url('../assets/fonts/Caveat-Medium.ttf') format('truetype'); }
+
+:root {
+  color-scheme: light dark;
+  --font-ui: Poppins, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-title: Lora, 'Iowan Old Style', Georgia, serif;
+  --font-hand: Caveat, 'Bradley Hand', cursive;
+
+  --desk: #f2e7d2;
+  --desk-art-opacity: 1;
+  --paper: #f5ecd6;
+  --paper-raised: #fbf6ea;
+  --paper-sunk: #ece0c6;
+  --paper-line: rgba(122, 96, 64, .16);
+  --ink: #30274e;
+  --ink-soft: #5d5470;
+  --ink-faint: #8f8599;
+  --primary: #161658;
+  --on-primary: #faf8ff;
+  --plum: #715b83;
+  --plum-faint: #a99a91;
+
+  --board-1: #c4add2; --board-2: #947ba4; --board-3: #5b466f; --board-edge: #4e3b60;
+  --page-block-1: #f3e8cf; --page-block-2: #c6b596;
+
+  --sage: #6f8a63; --sage-wash: #dfe8d7;
+  --honey: #b98a35; --honey-wash: #f3e4c8;
+  --lilac: #8265b0; --lilac-wash: #e4e0f4;
+  --terracotta: #a04f38; --terracotta-wash: #f4ded6;
+  --sleep: #8f8599; --sleep-wash: #e9e3dc;
+
+  --shadow-soft: 0 1px 1px rgba(48, 32, 20, .06), 0 8px 22px -10px rgba(48, 32, 20, .28);
+  --shadow-lift: 0 2px 2px rgba(48, 32, 20, .07), 0 18px 34px -14px rgba(48, 32, 20, .38);
+  --radius-paper: 16px 20px 14px 22px / 20px 14px 22px 16px;
+
+  --pill-ring: linear-gradient(135deg, #b4a5bb, #c4b8ca 48%, #a89582);
+  --pill-fill: linear-gradient(180deg, #faf8ff, #dfdaff);
+  --pill-ink: #161658;
+
+  --ease-out: cubic-bezier(.22, 1, .36, 1);
+  --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --desk: #17151d;
+    --desk-art-opacity: .07;
+    --paper: #242320;
+    --paper-raised: #2d2b27;
+    --paper-sunk: #1d1c19;
+    --paper-line: rgba(236, 230, 246, .1);
+    --ink: #ece6f6;
+    --ink-soft: #c2b9d2;
+    --ink-faint: #8e86a0;
+    --primary: #b9b7ff;
+    --on-primary: #17151d;
+    --plum: #c6b1d8;
+    --plum-faint: #5f5866;
+
+    --sage: #a9c39b; --sage-wash: #2b3629;
+    --honey: #e3bd73; --honey-wash: #3d3527;
+    --lilac: #c2adf0; --lilac-wash: #2d3048;
+    --terracotta: #f2b09c; --terracotta-wash: #432e2b;
+    --sleep: #8e86a0; --sleep-wash: #2a2830;
+
+    --shadow-soft: 0 1px 1px rgba(0, 0, 0, .3), 0 10px 24px -10px rgba(0, 0, 0, .7);
+    --shadow-lift: 0 2px 2px rgba(0, 0, 0, .35), 0 20px 38px -14px rgba(0, 0, 0, .8);
+
+    --pill-ring: linear-gradient(135deg, #6f6380, #8a7c99 48%, #6d5f52);
+    --pill-fill: linear-gradient(180deg, #3a3550, #2b2740);
+    --pill-ink: #e4e1ff;
+  }
+}

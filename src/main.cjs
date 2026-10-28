@@ -1,5 +1,6 @@
-const { app, BrowserWindow, ipcMain, dialog, protocol, session, Menu, safeStorage, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, protocol, session, Menu, safeStorage, shell, nativeTheme } = require('electron');
 const path = require('node:path');
+const os = require('node:os');
 const fs = require('node:fs/promises');
 const { Runtime, publicError } = require('./runtime.cjs');
 const { Vault } = require('./vault.cjs');
@@ -13,6 +14,7 @@ const { Vision } = require('./vision.cjs');
 const { Background } = require('./background.cjs');
 const { DeviceService } = require('./device-service.cjs');
 const { CompanionError, getModel } = require('./model.cjs');
+const { resolveAsset } = require('./renderer-assets.cjs');
 
 // Developer credentials stay in the main process; .env files are never packaged.
 if (!app.isPackaged) {
@@ -33,7 +35,7 @@ if (connectionDemo) process.on('SIGTERM', () => app.quit());
 let window;
 let runtime;
 let library, vault, jobs, devices, speech, embedder, voice, talk, vision, background, serviceError;
-const snapshot = () => ({ ...runtime.snapshot(), library: library?.snapshot(), devices: devices?.snapshot(), activity: [...(jobs?.list() || []), ...(voice?.list() || [])], speech: speech?.capability(), embedding: embedder?.capability(), vision: vision?.capability(), image: background && { ...background.capability(), installed: background.installedIds }, serviceError });
+const snapshot = () => ({ ...runtime.snapshot(), memoryGB: Math.round(os.totalmem() / 1024 ** 3), library: library?.snapshot(), devices: devices?.snapshot(), activity: [...(jobs?.list() || []), ...(voice?.list() || [])], speech: speech?.capability(), embedding: embedder?.capability(), vision: vision?.capability(), image: background && { ...background.capability(), installed: background.installedIds }, serviceError });
 const publish = () => { if (window && !window.isDestroyed()) window.webContents.send('companion:state', snapshot()); };
 let quitting = false;
 const APP_URL = 'journal://companion/index.html';
@@ -41,20 +43,17 @@ if (!app.requestSingleInstanceLock()) app.quit();
 else {
   app.on('second-instance', () => { window?.show(); window?.focus(); });
   app.whenReady().then(async () => {
-    const resources = new Map([
-      ['/index.html', ['index.html', 'text/html']],
-      ['/styles.css', ['styles.css', 'text/css']],
-      ['/app.js', ['app.js', 'text/javascript']],
-    ]);
     protocol.handle('journal', async (request) => {
       const url = new URL(request.url);
-      const resource = resources.get(url.pathname);
-      if (url.hostname !== 'companion' || !resource || request.method !== 'GET') return new Response('', { status: 404 });
-      return new Response(await fs.readFile(path.join(__dirname, 'renderer', resource[0])), { headers: {
-        'Content-Type': resource[1],
-        'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'",
-        'X-Content-Type-Options': 'nosniff',
-      } });
+      const asset = url.hostname === 'companion' && request.method === 'GET' && resolveAsset(path.join(__dirname, 'renderer'), url.pathname);
+      if (!asset) return new Response('', { status: 404 });
+      try {
+        return new Response(await fs.readFile(asset.file), { headers: {
+          'Content-Type': asset.type,
+          'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'",
+          'X-Content-Type-Options': 'nosniff',
+        } });
+      } catch { return new Response('', { status: 404 }); }
     });
     session.defaultSession.setPermissionRequestHandler((_, __, callback) => callback(false));
     session.defaultSession.setPermissionCheckHandler(() => false);
@@ -63,10 +62,12 @@ else {
       callback({ cancel: !allowed });
     });
     window = new BrowserWindow({
-      width: 1180, height: 820, minWidth: 830, minHeight: 650, backgroundColor: '#f6f5f1',
+      width: 1240, height: 840, minWidth: 900, minHeight: 680, backgroundColor: nativeTheme.shouldUseDarkColors ? '#17151d' : '#f2e7d2',
       title: 'Journal Companion', titleBarStyle: 'hiddenInset',
       webPreferences: { preload: path.join(__dirname, 'preload.cjs'), nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true, webviewTag: false, spellcheck: false, devTools: !app.isPackaged },
     });
+    nativeTheme.on('updated', () => { if (!window.isDestroyed()) window.setBackgroundColor(nativeTheme.shouldUseDarkColors ? '#17151d' : '#f2e7d2'); });
+    if (!app.isPackaged) app.dock?.setIcon(path.join(__dirname, '..', 'assets', 'icon.png'));
     window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
     window.webContents.on('will-navigate', (event) => event.preventDefault());
     window.webContents.on('will-attach-webview', (event) => event.preventDefault());

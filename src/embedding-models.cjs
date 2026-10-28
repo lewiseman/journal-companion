@@ -9,7 +9,7 @@ const QWEN3_EMBEDDING = { capability: 'embedding', engine: 'llamacpp-embedding',
   queryInstruction: 'Given a question or search words, retrieve personal journal entries, notes or thoughts that answer or relate to it' };
 
 module.exports = Object.freeze([{
-  ...QWEN3_EMBEDDING, id: 'qwen3-embedding-0.6b-q8_0@370f27d7550e0def9b39c1f16d3fbaa13aa67728',
+  ...QWEN3_EMBEDDING, recommended: true, id: 'qwen3-embedding-0.6b-q8_0@370f27d7550e0def9b39c1f16d3fbaa13aa67728',
   name: 'Qwen3 Embedding · 0.6B', quantization: 'Q8_0', tier: 'Recommended recall',
   description: 'Multilingual text embeddings for finding diary entries, notes and thoughts by meaning. Strong on English and over 100 other languages.',
   memoryGB: 4, fitHint: 'Small enough to stay loaded beside a writing model and Whisper on a 24 GB Mac.',

@@ -3,7 +3,7 @@
 // QWEN3VL_2B_MULTIMODAL_Q4_K and MMPROJ_QWEN3VL_2B_MULTIMODAL_Q4_K entries).
 // The projection file is what lets llama.cpp accept image attachments.
 module.exports = Object.freeze([{
-  id: 'qwen3-vl-2b-instruct-q4_k_m@52d6c8ffea26cc873ac5ad116f8631268d7eb503',
+  recommended: true, id: 'qwen3-vl-2b-instruct-q4_k_m@52d6c8ffea26cc873ac5ad116f8631268d7eb503',
   name: 'Qwen3-VL · 2B Instruct', capability: 'vision', engine: 'llamacpp-completion', quantization: 'Q4_K_M',
   tier: 'Image understanding',
   description: 'A compact vision-language model for describing and answering questions about one note image. Loaded only while a request runs.',

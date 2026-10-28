@@ -74,7 +74,7 @@ const MODELS = Object.freeze([{
   revision: 'd0976223747697cb51e056d85c532013931fe52e',
   license: 'Gemma Terms of Use',
 }, ...additionalWritingModels, {
-  id: 'sd-2.1-q8_0@ef8fa11863cc80ab078276f9a0bf81601e5ed904',
+  recommended: true, id: 'sd-2.1-q8_0@ef8fa11863cc80ab078276f9a0bf81601e5ed904',
   name: 'Stable Diffusion · 2.1',
   capability: 'image', engine: 'sdcpp-generation', quantization: 'Q8_0',
   tier: 'Image generation',

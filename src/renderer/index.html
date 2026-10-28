@@ -4,65 +4,24 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Journal Companion</title>
-  <link rel="stylesheet" href="styles.css">
-  <script src="app.js" defer></script>
+  <link rel="stylesheet" href="styles/tokens.css">
+  <link rel="stylesheet" href="styles/base.css">
+  <link rel="stylesheet" href="styles/book.css">
+  <link rel="stylesheet" href="styles/home.css">
+  <link rel="stylesheet" href="styles/phones.css">
+  <link rel="stylesheet" href="styles/skills.css">
+  <script type="module" src="js/main.js"></script>
 </head>
 <body>
-  <aside class="sidebar">
-    <div class="brand"><span class="brand-mark">j.</span> Journal<span class="brand-sub">COMPANION</span></div>
-    <div class="nav-label">YOUR SPACE</div>
-    <div class="nav-active"><span>◉</span> Overview <span class="nav-dot"></span></div>
-    <div class="sidebar-note"><span class="small-orbit">✳</span><strong>A little closer to your thoughts.</strong><p>Local AI, right here on your Mac.</p></div>
-    <div class="sidebar-footer"><span class="privacy-dot"></span> Private by design <span class="preview">PREVIEW</span></div>
-  </aside>
-  <main>
-    <header><span>YOUR DESKTOP COMPANION</span><span class="local-badge">⌘ &nbsp; Runs on your Mac</span></header>
-    <section class="intro"><div class="eyebrow">A QUIET SPACE TO THINK</div><h1>Make room for<br><em>a little inspiration.</em></h1><p>Your own writing companion. Choose a local model,<br>then try a thought, a question, or a fresh perspective.</p></section>
-    <section class="status-card" aria-live="polite">
-      <div class="status-symbol" id="status-symbol">✳</div>
-      <div class="status-copy"><div class="status-heading"><h2 id="status-title">AI unavailable</h2><span id="status-pill" class="pill">SETUP NEEDED</span></div><p id="status-detail">Choose how to add the model to get started.</p><p id="status-error" class="error-code" hidden></p><progress id="download-progress" max="1" hidden></progress></div>
-      <button id="load" class="secondary" hidden>Load model</button><button id="unload" class="secondary" hidden>Unload</button>
-    </section>
-    <section class="workspace">
-      <div class="try-card">
-        <div class="section-label"><span>01 / TRY IT OUT</span><span class="muted">TEXT ONLY</span></div>
-        <h2>What’s on your mind?</h2><p class="muted">Start small. See what a local model can do.</p>
-        <form id="prompt-form"><label for="prompt" class="sr-only">Your request</label><textarea id="prompt" maxlength="1800" placeholder="Give me three thoughtful journal prompts for the end of a busy day."></textarea><div class="form-footer"><span id="input-help">Up to 2,000 UTF-8 bytes</span><button id="generate" type="submit" disabled>Generate <span>↗</span></button></div></form>
-        <div class="response-top"><span>RESPONSE</span><button id="clear" class="text-button">Clear</button></div>
-        <div id="response" class="response empty" aria-live="polite" aria-atomic="false">A fresh perspective will appear here.</div>
-        <p id="action-error" class="action-error" role="alert" hidden></p>
-      </div>
-      <div class="model-card">
-        <div class="section-label">02 / YOUR LOCAL MODEL</div><div class="model-icon">✧</div>
-        <h2>Your choice.<br>More possibilities.</h2>
-        <label for="model-select" class="model-select-label">Choose a model</label>
-        <select id="model-select" aria-describedby="model-description model-guidance" disabled><option>Checking models…</option></select>
-        <h3 id="model-name">Qwen2.5 · 0.5B Instruct</h3><p id="model-meta" class="model-meta"></p>
-        <p id="model-description"></p><p id="model-guidance" class="model-guidance"></p>
-        <div class="model-actions"><button id="use-model" class="secondary" hidden>Use downloaded model</button><button id="download" class="secondary">Download &amp; use model ↓</button><button id="choose" class="text-button">Select existing GGUF file</button></div>
-        <p class="download-note">Downloads once from the listed Hugging Face publisher or converter, or from peers in the QVAC model registry for QVAC-converted speech models. Every file is checked against a pinned size and SHA-256. Installed models stay on this Mac when you switch. Review each model’s license in its details below.</p>
-        <div class="model-installed" id="model-installed" role="status" hidden></div>
-        <p id="model-download-status" role="status" hidden></p>
-      </div>
-    </section>
-    <section class="connection-panel">
-      <h2>Voice from Android</h2><p id="speech-state" role="status"></p><label for="speech-model-select">Speech recognition model</label><select id="speech-model-select" aria-describedby="speech-state"></select><button id="load-speech" class="secondary">Load speech + Silero VAD</button><p>Download a multilingual Whisper model and Silero VAD above, then load speech. Whisper Large v3 Turbo is recommended. The phone records 16 kHz mono audio; speech appears after short pauses. Review every transcript. Read diary replies on screen; speech synthesis is unavailable.</p></section><section class="connection-panel"><h2>Search by meaning</h2><p id="embedding-state" role="status"></p><label for="embedding-model-select">Embedding model</label><select id="embedding-model-select" aria-describedby="embedding-state"></select><button id="load-embedding" class="secondary">Load embedding model</button><button id="unload-embedding" class="secondary">Unload</button><p>Download Qwen3 Embedding above, then load it. Phones that opt in under Settings → Local QVAC send their diary entries, notes or thoughts in small batches and keep the resulting vectors on the phone. Nothing is kept here once each batch is collected. Switching model makes every phone rebuild its index.</p></section><section class="connection-panel"><h2>Note websites</h2><p id="coding-state" role="status"></p><label for="coding-model-select">Model for websites</label><select id="coding-model-select" aria-describedby="coding-state"></select><button id="assign-coding" class="secondary">Use for websites</button><p>Download a model from Writing · coding &amp; HTML above, then choose it here. For each website a phone asks for, the writing model is unloaded, the coding model loads and builds the page, and the writing model loads again. Expect a few extra seconds each way. Everything else keeps using the writing model.</p></section><section class="connection-panel"><h2>Note backgrounds</h2><p id="image-state" role="status"></p><label for="image-model-select">Image model for backgrounds</label><select id="image-model-select"></select><button id="assign-image" class="secondary">Use for backgrounds</button><button id="test-image" class="secondary">Run generation test</button><p>Download an image model above, assign it, then run the short generation test. Phones send only the description the person typed and a light or dark tone. Each request loads the model (about 10 s), generates (about 40 s for Stable Diffusion 2.1 on Apple Silicon) and unloads it. Cancelling unloads the model to stop. Results are kept encrypted until the phone collects them or 24 hours pass.</p></section><section class="connection-panel"><h2>Note images</h2><p id="vision-state" role="status"></p><button id="test-vision" class="secondary">Run image self-test</button><p>After downloading Qwen3-VL, the self-test sends a generated red square through the model and enables image questions only if the model reports red. Each phone request (an image question or a page scan) loads the model, answers, and unloads it. Download EasyOCR · Latin as well to have scans cross-checked. The image is kept encrypted only until the request finishes.</p></section><section class="connection-panel"><h2>Models &amp; capabilities</h2><p id="library-state">Checking installed artifacts…</p>
-      <p>Writing and Whisper transcription work on paired Android phones. Other speech and image models remain download-only. Downloading preserves the active writing model. Embeddings power phone search by meaning once loaded below. Read-aloud, image generation and OCR are not enabled; image questions need the self-test under Note images.</p>
-      <button id="install" class="secondary">Download selected without loading</button> <button id="cancel-download" class="secondary">Cancel download</button>
-      <button id="remove" class="secondary">Remove active model</button> <button id="assign" class="secondary">Assign writing model</button>
-      <button id="catalog" class="text-button">Selected model details &amp; license ↗</button>
-      <p>Choose a model above to download or switch. Writing and speech can remain loaded together; available memory determines fit. Retry starts a new download; incomplete files cannot load. External files are never removed.</p>
-    </section>
-    <section class="connection-panel">
-      <h2>Connect a phone</h2><p>Keep both devices on the same Wi-Fi. Internet is unnecessary after setup. Scan this Mac’s QR in Journal Settings, compare the phone verification code below, then approve.</p>
-      <p id="device-service" role="status"></p><p id="identity"></p>
-      <button id="pair" class="secondary">Create pairing QR</button> <button id="disable-service" class="secondary">Stop phone connections</button>
-      <div id="pairing" hidden><img id="pair-qr" width="320" height="320" alt="Short-lived Journal pairing QR"><p id="pair-expiry"></p><label for="pair-code">Fallback: copy this full code to Journal Settings → Paste pairing code. It contains a one-use secret; share only with your intended phone.</label><textarea id="pair-code" readonly></textarea></div>
-      <div id="pending-devices"></div><h3>Trusted devices</h3><div id="trusted-devices"></div>
-      <p>Stopping connections keeps trust and accepted work. Revoking a device cancels its active work, deletes retained work and prevents future access. A new QR invalidates unapproved pairing requests.</p>
-    </section>
-    <section class="connection-panel"><h2>Activity</h2><p>Accepted phone requests are encrypted on disk for up to 24 hours. Disconnecting does not cancel them. Quit or sleep pauses execution; interrupted work requires an explicit retry with a new ID.</p><div id="activity"></div></section>
-    <footer><span>◈ &nbsp; Your words stay on this computer.</span><span>Desktop demo text is discarded on clear or quit.</span></footer>
-  </main>
+  <div id="book" hidden></div>
+  <div id="app" class="app" hidden>
+    <nav id="rail" class="rail" aria-label="Sections"></nav>
+    <main class="views">
+      <section id="view-home" class="view" aria-label="Home"></section>
+      <section id="view-phones" class="view" aria-label="Phones"></section>
+      <section id="view-skills" class="view" aria-label="Skills"></section>
+    </main>
+  </div>
+  <div id="toast" class="toast" role="alert"></div>
 </body>
 </html>
