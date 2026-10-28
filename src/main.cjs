@@ -8,6 +8,8 @@ const { Jobs } = require('./jobs.cjs');
 const { Speech } = require('./speech.cjs');
 const { Voice } = require('./voice.cjs');
 const { Talk } = require('./talk.cjs');
+const { Vision } = require('./vision.cjs');
+const { Background } = require('./background.cjs');
 const { DeviceService } = require('./device-service.cjs');
 const { CompanionError, getModel } = require('./model.cjs');
 
@@ -29,8 +31,8 @@ if (verification || connectionDemo) {
 if (connectionDemo) process.on('SIGTERM', () => app.quit());
 let window;
 let runtime;
-let library, vault, jobs, devices, speech, voice, talk, serviceError;
-const snapshot = () => ({ ...runtime.snapshot(), library: library?.snapshot(), devices: devices?.snapshot(), activity: [...(jobs?.list() || []), ...(voice?.list() || [])], speech: speech?.capability(), serviceError });
+let library, vault, jobs, devices, speech, voice, talk, vision, background, serviceError;
+const snapshot = () => ({ ...runtime.snapshot(), library: library?.snapshot(), devices: devices?.snapshot(), activity: [...(jobs?.list() || []), ...(voice?.list() || [])], speech: speech?.capability(), vision: vision?.capability(), image: background && { ...background.capability(), installed: background.installedIds }, serviceError });
 const publish = () => { if (window && !window.isDestroyed()) window.webContents.send('companion:state', snapshot()); };
 let quitting = false;
 const APP_URL = 'journal://companion/index.html';
@@ -96,6 +98,10 @@ else {
     const reconcile = async (action) => { const result = await action(); await library.reconcile(); publish(); return result; };
     handle('state', noArgs(snapshot));
     handle('loadSpeech', withModel((model) => speech.load(model.id)));
+    const images = () => { if (!background) throw new CompanionError('SECURE_STORAGE', 'Image generation needs secure storage.'); return background; };
+    handle('assignImage', withModel((model) => images().assign(model.id)));
+    handle('testImage', noArgs(() => images().selfTest()));
+    handle('testVision', noArgs(() => { if (!vision) throw new CompanionError('SECURE_STORAGE', 'Image input needs secure storage.'); return vision.selfTest(); }));
     const download = (model, autoLoad) => {
       if (library.downloading) throw new CompanionError('BUSY', 'Wait for the current download to finish.');
       return model.capability !== 'text' ? library.downloadArtifact(model.id) : reconcile(() => runtime.download(autoLoad, model.id));
@@ -159,6 +165,10 @@ else {
       voice = new Voice(vault, speech); voice.on('change', () => { publish(); if (!quitting && !speech.busy && !voice.pumping) jobs?.pump(); }); await voice.initialize();
       talk = new Talk(vault, speech, runtime); voice.talk = talk; talk.on('change', () => { publish(); if (quitting || talk.active) return; voice.pump().catch(() => {}); if (!speech.busy && !voice.pumping) jobs?.pump(); });
       jobs = new Jobs(vault, runtime, library);
+      vision = new Vision(runtime, { protector }); jobs.vision = vision; vision.on('change', publish);
+      library.on('change', () => vision.reconcile().catch(() => {})); await vision.initialize();
+      background = new Background(runtime, { protector }); jobs.background = background; background.on('change', publish);
+      library.on('change', () => background.reconcile().catch(() => {})); await background.initialize();
       // A live talk session keeps the writing model free between turns.
       jobs.paused = () => !!talk?.active; await jobs.initialize(); jobs.on('change', publish);
       const demoPortArg = connectionDemo && process.argv.find((arg) => arg.startsWith('--demo-port='));

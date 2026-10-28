@@ -13,6 +13,7 @@ const { DIARY_OPERATION, DIARY_LIMITS, DIARY_SYSTEM, validateDiaryInput, validat
 const { QUESTION_OPERATION, QUESTION_LIMITS, QUESTION_SYSTEM, validateQuestionInput, validateQuestionOutput, questionResponseFormat } = require('./question.cjs');
 const { HISTORY_OPERATION, HISTORY_LIMITS, HISTORY_SYSTEM, validateHistoryInput, validateHistoryOutput, historyResponseFormat } = require('./history.cjs');
 const { REFLECTION_OPERATION, REFLECTION_LIMITS, REFLECTION_SYSTEM, validateReflectionInput, validateReflectionOutput } = require('./reflection.cjs');
+const { NOTE_HELP } = require('./note-help.cjs');
 
 function writingModel(id) {
   const model = getModel(id);
@@ -75,7 +76,7 @@ class Runtime extends EventEmitter {
       await fs.mkdir(this.directory, { recursive: true, mode: 0o700 });
       const config = path.join(this.directory, 'runtime.json');
       await fs.writeFile(config, JSON.stringify({
-        plugins: ['@qvac/sdk/llamacpp-completion/plugin', '@qvac/sdk/whispercpp-transcription/plugin'], loggerConsoleOutput: false, loggerLevel: 'error',
+        plugins: ['@qvac/sdk/llamacpp-completion/plugin', '@qvac/sdk/whispercpp-transcription/plugin', '@qvac/sdk/ggml-ocr/plugin', '@qvac/sdk/sdcpp-generation/plugin'], loggerConsoleOutput: false, loggerLevel: 'error',
         cacheDirectory: path.join(this.directory, 'runtime-cache'), requireHttpChecksum: true, requireSecureTransport: true,
       }), { mode: 0o600 });
       process.env.QVAC_CONFIG_PATH = config;
@@ -150,6 +151,7 @@ class Runtime extends EventEmitter {
     return { ok: true };
   }); }
   generate(prompt, { job = false, operation = 'text', onToken = null } = {}) {
+    if (Object.hasOwn(NOTE_HELP, operation)) return this.generateStructured(prompt, NOTE_HELP[operation], { job });
     if (typeof prompt !== 'string' || !prompt.trim() || Buffer.byteLength(prompt, 'utf8') > (operation === CONVERSATION_OPERATION ? CONVERSATION_LIMITS.inputBytes : 2000)) {
       throw new CompanionError('INVALID_INPUT', 'Enter a short request of up to 2,000 UTF-8 bytes.');
     }
@@ -217,7 +219,52 @@ class Runtime extends EventEmitter {
       return { ok: true, text };
     }, { job });
   }
+  // One bounded grammar-constrained JSON request described by [spec]
+  // (limits, system, validateInput/Output, responseFormat, params).
+  generateStructured(prompt, spec, { job = false } = {}) {
+    spec.validateInput(prompt);
+    return this.operation(async () => {
+      if (!this.modelId || this.state.status !== 'ready') throw new CompanionError('NOT_READY', 'Load the model before sending a request.');
+      this.cancelRequested = false;
+      this.update({ status: 'working', detail: 'Writing on this Mac…', error: null });
+      const run = this.sdk.completion({
+        modelId: this.modelId, history: [{ role: 'system', content: spec.system }, { role: 'user', content: prompt }],
+        stream: true, kvCache: false, responseFormat: spec.responseFormat(),
+        generationParams: { predict: spec.limits.outputTokens, ...spec.params(),
+          ...(this.model.reasoningBudget === 0 ? { reasoning_budget: 0 } : {}) },
+      });
+      this.activeRun = run;
+      let text = '', stopReason;
+      try {
+        await bounded((async () => {
+          for await (const token of run.tokenStream) {
+            if (typeof token !== 'string') throw new CompanionError('INVALID_OUTPUT', 'The model returned invalid text.');
+            text += token;
+            if (Buffer.byteLength(text) > spec.limits.outputBytes) {
+              await this.cancelGeneration();
+              throw new CompanionError('INVALID_OUTPUT', 'The result exceeded the output limit. Retry explicitly.');
+            }
+          }
+          await run.text;
+          if (run.final) stopReason = (await run.final).stopReason;
+        })());
+      } catch (error) {
+        if (error.code === 'INVALID_OUTPUT' || !this.cancelRequested || !this.modelId || this.closed) throw error;
+        await bounded(this.sdk.getLoadedModelInfo({ modelId: this.modelId }), 5000);
+        this.update({ status: 'ready', detail: 'Request cancelled. The writing model is still ready.', error: null });
+        return { ok: false, error: { code: 'CANCELLED', message: 'Request cancelled.' } };
+      }
+      this.activeRun = null;
+      this.update({ status: 'ready', detail: 'Finished locally. You can send another request.' });
+      if (stopReason === 'length') return { ok: false, error: { code: 'OUTPUT_LIMIT', message: `The result reached its ${spec.limits.outputTokens}-token limit. No partial result was returned.` } };
+      if (stopReason === 'cancelled') return { ok: false, error: { code: 'CANCELLED', message: 'Request cancelled.' } };
+      try { return { ok: true, text: spec.validateOutput(text) }; }
+      catch (error) { return { ok: false, error: { code: error.code, message: error.message } }; }
+    }, { job });
+  }
   async cancelGeneration() {
+    // Work that cannot be cancelled by request ID (image generation) installs its own stop.
+    if (this.stopActive) { this.cancelRequested = true; return this.stopActive(); }
     if (this.activeRun?.requestId && this.sdk) {
       this.cancelRequested = true;
       try { await bounded(this.sdk.cancel({ requestId: this.activeRun.requestId }), 5000); } catch { await this.closeSdk(); }

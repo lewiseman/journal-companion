@@ -9,7 +9,10 @@ const { DIARY_OPERATION, validateDiaryInput, validateDiaryOutput } = require('./
 const { QUESTION_OPERATION, validateQuestionInput, validateQuestionOutput } = require('./question.cjs');
 const { HISTORY_OPERATION, validateHistoryInput, validateHistoryOutput } = require('./history.cjs');
 const { REFLECTION_OPERATION, validateReflectionInput, validateReflectionOutput } = require('./reflection.cjs');
-const JOB_OPERATIONS = () => [CONVERSATION_OPERATION, 'text', SUMMARY_OPERATION, ...Object.keys(OPERATIONS), PRESENTATION_OPERATION, DIARY_OPERATION, QUESTION_OPERATION, HISTORY_OPERATION, REFLECTION_OPERATION];
+const { NOTE_HELP } = require('./note-help.cjs');
+const { IMAGE_OPERATIONS, validateImageJobInput } = require('./vision.cjs');
+const { BACKGROUND_OPERATION, validateBackgroundInput } = require('./background.cjs');
+const JOB_OPERATIONS = () => [CONVERSATION_OPERATION, 'text', SUMMARY_OPERATION, ...Object.keys(OPERATIONS), PRESENTATION_OPERATION, DIARY_OPERATION, QUESTION_OPERATION, HISTORY_OPERATION, ...Object.keys(NOTE_HELP), ...IMAGE_OPERATIONS, BACKGROUND_OPERATION, REFLECTION_OPERATION];
 const TERMINAL = new Set(['completed', 'failed', 'cancelled', 'interrupted', 'expired']);
 const RETENTION = 24 * 60 * 60 * 1000;
 const TOMBSTONE_RETENTION = 7 * RETENTION;
@@ -38,9 +41,22 @@ class Jobs extends EventEmitter {
     if (this.active && this.vault.value.jobs[this.active]?.state !== 'running') await this.runtime.cancelGeneration();
     this.refresh();
   }
-  refresh() { this.runtime.reserved = Object.values(this.vault.value.jobs).some((j) => !TERMINAL.has(j.state)); this.emit('change'); }
+  refresh() {
+    this.runtime.reserved = Object.values(this.vault.value.jobs).some((j) => !TERMINAL.has(j.state)); this.emit('change');
+    this.vision?.sweep(this.vault.value.jobs).catch(() => {});
+    this.background?.sweep(this.vault.value.jobs, this.now()).catch(() => {});
+  }
   key(device, id) { return `${device}:${id}`; }
-  async submit(device, input) {
+  // Image jobs arrive only through the larger image route, with base64 bytes.
+  async submit(device, input, { image = false } = {}) {
+    const vision = IMAGE_OPERATIONS.includes(input?.operation);
+    if (vision !== image || (vision && !this.vision)) throw new CompanionError('INVALID_INPUT', 'Send image questions through the image route.');
+    if (vision) validateImageJobInput(input.prompt, input.operation);
+    const background = input?.operation === BACKGROUND_OPERATION;
+    if (background) {
+      if (!this.background) throw new CompanionError('NOT_READY', 'Note backgrounds are not available on this computer.');
+      validateBackgroundInput(input.prompt);
+    }
     if (!input || !/^[a-zA-Z0-9_-]{8,80}$/.test(input.id || '') || !JOB_OPERATIONS().includes(input.operation) || typeof input.prompt !== 'string' || !input.prompt.trim() || Buffer.byteLength(input.prompt) > (input.operation === CONVERSATION_OPERATION ? CONVERSATION_LIMITS.inputBytes : 2000)) throw new CompanionError('INVALID_INPUT', 'Supply a unique request ID and up to 2,000 UTF-8 bytes for text.');
     if (input.operation === CONVERSATION_OPERATION) validateConversationInput(input.prompt);
     if (input.operation === SUMMARY_OPERATION) validateSummaryInput(input.prompt);
@@ -50,8 +66,17 @@ class Jobs extends EventEmitter {
     if (input.operation === QUESTION_OPERATION) validateQuestionInput(input.prompt);
     if (input.operation === HISTORY_OPERATION) validateHistoryInput(input.prompt);
     if (input.operation === REFLECTION_OPERATION) validateReflectionInput(input.prompt);
+    if (Object.hasOwn(NOTE_HELP, input.operation)) NOTE_HELP[input.operation].validateInput(input.prompt);
     if (input.expires !== undefined && (!Number.isSafeInteger(input.expires) || input.expires > this.now() + RETENTION + 60000)) throw new CompanionError('INVALID_INPUT', 'Supply an expiry within 24 hours. Check both device clocks.');
-    const key = this.key(device, input.id), digest = createHash('sha256').update(JSON.stringify([input.operation, input.prompt])).digest('hex');
+    let picture;
+    if (vision) {
+      if (typeof input.image !== 'string' || !/^[A-Za-z0-9+/]+={0,2}$/.test(input.image)) throw new CompanionError('INVALID_IMAGE', 'Send one base64 PNG or JPEG image.');
+      picture = Buffer.from(input.image, 'base64');
+      if (this.vision.capability().status !== 'ready') throw new CompanionError('NOT_READY', 'Image understanding is not ready on the computer.');
+    }
+    const key = this.key(device, input.id), digest = createHash('sha256').update(JSON.stringify([input.operation, input.prompt, ...(picture ? [createHash('sha256').update(picture).digest('hex')] : [])])).digest('hex');
+    // Store the encrypted image before accepting; an existing identical job keeps its own copy.
+    const stored = picture && !this.vault.value.jobs[key] ? await this.vision.store(device, input.id, picture) : null;
     await this.vault.change((data) => {
       this.prune(data);
       if (!data.devices[device]) throw new CompanionError('UNAUTHORIZED', 'Device trust was revoked.');
@@ -60,9 +85,11 @@ class Jobs extends EventEmitter {
         return;
       }
       if (input.expires !== undefined && input.expires <= this.now()) throw new CompanionError('EXPIRED', 'This request expired. Start a new request explicitly.');
-      if (this.library.capability().status !== 'ready' && !this.runtime.reserved) throw new CompanionError('NOT_READY', 'The writing model is not ready.');
+      if (background && this.background.capability().status !== 'ready') throw new CompanionError('NOT_READY', 'Background generation is not ready on the computer.');
+      if (!vision && !background && this.library.capability().status !== 'ready' && !this.runtime.reserved) throw new CompanionError('NOT_READY', 'The writing model is not ready.');
       if (Object.values(data.jobs).filter((j) => !TERMINAL.has(j.state)).length >= 16 || Object.values(data.jobs).filter((j) => j.device === device && !TERMINAL.has(j.state)).length >= 4 || Object.values(data.jobs).length >= 1000) throw new CompanionError('QUEUE_FULL', 'Wait for or remove previous work.');
-      data.jobs[key] = { id: input.id, device, operation: input.operation, model: this.library.assignment, digest, prompt: input.prompt, state: 'queued', created: this.now(), expires: Math.min(input.expires ?? this.now() + RETENTION, this.now() + RETENTION) };
+      data.jobs[key] = { id: input.id, device, operation: input.operation, model: vision ? this.vision.model.id : background ? this.background.model.id : this.library.assignment, digest, prompt: input.prompt, state: 'queued', created: this.now(), expires: Math.min(input.expires ?? this.now() + RETENTION, this.now() + RETENTION),
+        ...(stored ? { image: { type: stored.type, width: stored.width, height: stored.height, bytes: stored.bytes } } : {}) };
     });
     this.refresh(); setImmediate(() => this.pump());
     return this.get(device, input.id);
@@ -121,7 +148,9 @@ class Jobs extends EventEmitter {
         this.emit('change');
         let result;
         try {
-          result = job.model !== this.library.assignment ? { ok: false, error: { code: 'ASSIGNMENT_CHANGED' } } : await this.runtime.generate(job.prompt, { job: true, operation: job.operation });
+          result = job.operation === BACKGROUND_OPERATION ? await this.generateBackground(job, key)
+            : IMAGE_OPERATIONS.includes(job.operation) ? await this.vision.run(JSON.parse(job.prompt), await this.vision.load(job.device, job.id, job.image?.type), { job: true, operation: job.operation })
+            : job.model !== this.library.assignment ? { ok: false, error: { code: 'ASSIGNMENT_CHANGED' } } : await this.runtime.generate(job.prompt, { job: true, operation: job.operation });
           if (result.ok && job.operation === CONVERSATION_OPERATION) result.text = validateConversationOutput(result.text, job.prompt);
           if (result.ok && job.operation === SUMMARY_OPERATION) result.text = validateSummaryOutput(result.text);
           if (result.ok && Object.hasOwn(OPERATIONS, job.operation)) result.text = validateTransformOutput(result.text);
@@ -130,8 +159,9 @@ class Jobs extends EventEmitter {
           if (result.ok && job.operation === QUESTION_OPERATION) result.text = validateQuestionOutput(result.text);
           if (result.ok && job.operation === HISTORY_OPERATION) result.text = validateHistoryOutput(result.text);
           if (result.ok && job.operation === REFLECTION_OPERATION) result.text = validateReflectionOutput(result.text);
+          if (result.ok && Object.hasOwn(NOTE_HELP, job.operation)) result.text = NOTE_HELP[job.operation].validateOutput(result.text);
         }
-        catch (error) { result = { ok: false, error: { code: error.code === 'INVALID_OUTPUT' ? error.code : 'RUNTIME_FAILED' } }; }
+        catch (error) { result = { ok: false, error: { code: ['INVALID_OUTPUT', 'IMAGE_MISSING'].includes(error.code) ? error.code : 'RUNTIME_FAILED' } }; }
         await this.vault.change((data) => {
           this.prune(data);
           if (data.jobs[key]?.state !== 'running') return;
@@ -142,6 +172,25 @@ class Jobs extends EventEmitter {
         this.active = null; this.refresh();
       }
     } finally { this.active = null; this.pumping = false; this.refresh(); }
+  }
+  async generateBackground(job, key) {
+    if (job.model !== this.background.model?.id) return { ok: false, error: { code: 'ASSIGNMENT_CHANGED' } };
+    let last = 0;
+    const result = await this.background.generate(JSON.parse(job.prompt), { job: true, onProgress: (step, total) => {
+      // Progress is advisory; a few durable updates per job are enough.
+      if (this.now() - last < 2000 && step !== total) return;
+      last = this.now();
+      this.vault.change((data) => { if (data.jobs[key]?.state === 'running') data.jobs[key].progress = { step, total }; }).then(() => this.emit('change'), () => {});
+    } });
+    if (!result.ok) return result;
+    const sha256 = await this.background.store(job.device, job.id, result.bytes);
+    return { ok: true, text: JSON.stringify({ width: result.width, height: result.height, seed: result.seed, bytes: result.bytes.length, sha256, model: result.model }) };
+  }
+  /** The generated PNG of a completed, unacknowledged background job. */
+  async backgroundResult(device, id) {
+    const job = this.get(device, id);
+    if (job.operation !== BACKGROUND_OPERATION || job.state !== 'completed' || job.acknowledged || !this.background) throw new CompanionError('NOT_FOUND', 'No generated background is waiting for this task.');
+    return { id, image: await this.background.result(device, id), sha256: JSON.parse(job.text).sha256 };
   }
   async shutdown() {
     this.stopped = true; clearInterval(this.timer);

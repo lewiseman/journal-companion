@@ -1,0 +1,174 @@
+{
+  "milestone": "I06",
+  "date": "2026-10-28",
+  "kind": "real QVAC 0.22.0 sdcpp-generation through production Runtime + Background + Jobs on macOS arm64 (24 GB); synthetic in-memory vault, AES-GCM protector; no phone/TLS in the loop",
+  "run": {
+    "milestone": "I06",
+    "runtime": "real QVAC @qvac/sdk 0.22.0 sdcpp-generation",
+    "host": "darwin arm64",
+    "totalMemoryGB": 24,
+    "model": "sd-2.1-q8_0@ef8fa11863cc80ab078276f9a0bf81601e5ed904",
+    "at": "2026-10-28T07:09:47.019Z",
+    "states": [
+      "unassigned",
+      "untested",
+      "ready"
+    ],
+    "selfTest": {
+      "ok": true,
+      "seconds": 4.935
+    },
+    "results": [
+      {
+        "input": {
+          "prompt": "sea glass and soft morning fog",
+          "tone": "light"
+        },
+        "state": "completed",
+        "error": null,
+        "meta": {
+          "width": 512,
+          "height": 768,
+          "seed": 1417503187,
+          "bytes": 738819,
+          "sha256": "41fc7c8601b06e9ad4abe23f355b5117f6b5c2cc0368058b7406ea79699295f4",
+          "model": "sd-2.1-q8_0@ef8fa11863cc80ab078276f9a0bf81601e5ed904"
+        },
+        "seconds": 39.354,
+        "progress": [
+          {
+            "step": 0,
+            "total": 20
+          },
+          {
+            "step": 2,
+            "total": 20
+          },
+          {
+            "step": 4,
+            "total": 20
+          },
+          {
+            "step": 6,
+            "total": 20
+          },
+          {
+            "step": 8,
+            "total": 20
+          },
+          {
+            "step": 10,
+            "total": 20
+          },
+          {
+            "step": 12,
+            "total": 20
+          },
+          {
+            "step": 14,
+            "total": 20
+          },
+          {
+            "step": 16,
+            "total": 20
+          },
+          {
+            "step": 18,
+            "total": 20
+          },
+          {
+            "step": 20,
+            "total": 20
+          }
+        ],
+        "collectedAndAcknowledged": true
+      },
+      {
+        "input": {
+          "prompt": "night forest with fireflies",
+          "tone": "dark"
+        },
+        "state": "completed",
+        "error": null,
+        "meta": {
+          "width": 512,
+          "height": 768,
+          "seed": 874922157,
+          "bytes": 933174,
+          "sha256": "adac4ac8c87ef4eb58641d576b3b495fb2bb16e5c6a04a39a1d7bec3cd61368b",
+          "model": "sd-2.1-q8_0@ef8fa11863cc80ab078276f9a0bf81601e5ed904"
+        },
+        "seconds": 39.312,
+        "progress": [
+          {
+            "step": 0,
+            "total": 20
+          },
+          {
+            "step": 2,
+            "total": 20
+          },
+          {
+            "step": 4,
+            "total": 20
+          },
+          {
+            "step": 6,
+            "total": 20
+          },
+          {
+            "step": 8,
+            "total": 20
+          },
+          {
+            "step": 10,
+            "total": 20
+          },
+          {
+            "step": 12,
+            "total": 20
+          },
+          {
+            "step": 14,
+            "total": 20
+          },
+          {
+            "step": 16,
+            "total": 20
+          },
+          {
+            "step": 18,
+            "total": 20
+          },
+          {
+            "step": 20,
+            "total": 20
+          }
+        ],
+        "collectedAndAcknowledged": true
+      }
+    ],
+    "cancel": {
+      "state": "cancelled",
+      "secondsToStop": 1.505,
+      "totalSeconds": 7.731,
+      "writingRuntimeStatus": "unavailable"
+    },
+    "outputFilesLeft": 0
+  },
+  "images": [
+    "i06-background-0.jpg (light: 'sea glass and soft morning fog')",
+    "i06-background-1.jpg (dark: 'night forest with fireflies')"
+  ],
+  "sdkFindings": {
+    "plugins": "The packaged worker only bundles plugins listed in qvac.config.json; sdcpp-generation had to be added (load failed with 'Plugin not found' after bundling).",
+    "progress": "diffusion().progressStream yields one tick per step (21 ticks for 20 steps), ~1.7 s/step at 512x768 on this Mac.",
+    "cancel": "cancel({modelId, kind:'diffusion'}) and cancel({operation:'inference', modelId}) did NOT interrupt generation in 0.22.0 (12/12 steps completed). unloadModel() during generation stopped it within ~1 s ('Job cancelled' at step 3), and a new load works afterwards. The companion therefore cancels by unloading its per-request model.",
+    "timing": "Model load ~10-11 s (cold), generation ~37-39 s for 512x768x20 steps, self-test (256x256x4) ~5 s including load.",
+    "memory": "SD 2.1 Q8_0 is 2.3 GB on disk; macOS free memory dropped by ~2.5 GB while loaded. SDXL Q4_0 (16 GB guidance) is refused as insufficient_memory on hosts with less than ~14.4 GB."
+  },
+  "observations": [
+    "Prompting 'no text' plus a negative prompt does not fully prevent text-like artefacts (the forest image shows faint pseudo-letters).",
+    "The 'dark' tone was only partly respected by SD 2.1 (bright green foreground)."
+  ]
+}

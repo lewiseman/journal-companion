@@ -5,7 +5,7 @@ let pairingExpires = 0;
 let selectedModelId;
 let selectedSpeechModelId;
 // Download-only capabilities and the future feature each one is kept for.
-const futureUse = { image: 'image generation', transcription: 'speech-to-text', speech: 'read-aloud' };
+const futureUse = { image: 'image generation', transcription: 'speech-to-text', speech: 'read-aloud', vision: 'note image questions', ocr: 'scan checking' };
 const labels = { unavailable: ['AI unavailable', 'SETUP NEEDED'], loading: ['Getting things ready', 'LOADING'], ready: ['Your companion is ready', 'READY'], working: ['A thought is taking shape', 'WORKING'], failed: ['AI needs attention', 'FAILED'] };
 function render(next) {
   state = next;
@@ -28,6 +28,9 @@ function render(next) {
   $('unload').hidden = state.status !== 'ready'; $('unload').disabled = busy;
   $('clear').disabled = state.status === 'working';
   $('speech-state').textContent = state.speech ? `${state.speech.status} · ${state.speech.reason}` : 'Speech unavailable';
+  $('vision-state').textContent = state.vision ? `${state.vision.status} · ${state.vision.reason}${state.vision.ocrCheck ? ' · Scan check: EasyOCR installed.' : ' · Scan check: not installed.'}` : 'Image input needs secure storage.';
+  $('test-vision').disabled = !state.vision || ['needs_download', 'incompatible', 'busy'].includes(state.vision.status) || busy;
+  renderImage(busy);
   const speechModels = (state.library?.models || []).filter((m) => m.engine === 'whispercpp-transcription' && !m.filename.includes('silero') && !m.filename.includes('.en-'));
   if (!speechModels.some((m) => m.id === selectedSpeechModelId)) selectedSpeechModelId = state.speech?.model || speechModels[0]?.id;
   const speechPicker = $('speech-model-select');
@@ -54,7 +57,7 @@ function renderModels(disabled, downloading, unsupported) {
     picker.replaceChildren(...[
       ['Popular', 'Writing · popular choices'], ['New', 'Writing · newer & interesting'],
       ['Lightweight', 'Writing · lightweight'], ['transcription', 'Speech to text · Whisper available'],
-      ['speech', 'Text to speech · download only'], ['image', 'Image generation · download only'],
+      ['speech', 'Text to speech · download only'], ['image', 'Image generation · download only'], ['vision', 'Image understanding · after self-test'], ['ocr', 'Scan checking · optional'],
     ].map(([collection, label]) => {
       const group = document.createElement('optgroup'); group.label = label;
       for (const model of models.filter((entry) => Object.hasOwn(futureUse, collection) ? entry.capability === collection : entry.capability === 'text' && entry.collection === collection)) {
@@ -74,7 +77,7 @@ function renderModels(disabled, downloading, unsupported) {
   $('model-name').textContent = model.name;
   $('model-meta').textContent = `${model.quantization} · ${size} download${files} · ${model.license}`;
   $('model-description').textContent = model.description;
-  $('model-guidance').textContent = `${model.tier} · ${model.memoryGB} GB+ system memory suggested. ${image ? `${model.engine === 'whispercpp-transcription' ? 'Whisper and Silero VAD enable Android voice capture.' : `Download weights now; ${future} will be added later.`}${model.source === 'registry' ? ' Downloads from peers in the QVAC model registry.' : ''}` : model.fitHint || 'Speed depends on your Mac.'}`;
+  $('model-guidance').textContent = `${model.tier} · ${model.memoryGB} GB+ system memory suggested. ${image ? `${model.engine === 'whispercpp-transcription' ? 'Whisper and Silero VAD enable Android voice capture.' : model.capability === 'vision' ? 'Downloads the model and its image projector; run the image self-test before phones can ask about note images or scan pages.' : model.capability === 'ocr' ? 'Optional second reader for scanned pages: words it reads differently are flagged on the phone for checking.' : `Download weights now; ${future} will be added later.`}${model.source === 'registry' ? ' Downloads from peers in the QVAC model registry.' : ''}` : model.fitHint || 'Speed depends on your Mac.'}`;
   $('download').textContent = model.installed ? 'Download a fresh copy ↓' : `${image ? 'Download' : 'Download & use'} · ${size} ↓`;
   $('use-model').hidden = !model.installed || image;
   $('use-model').textContent = model.loaded ? 'Currently loaded' : 'Use downloaded model';
@@ -119,6 +122,21 @@ $('prompt-form').addEventListener('submit', async (event) => {
   requestPending = false; render(state);
 });
 
+function renderImage(busy) {
+  const image = state.image, picker = $('image-model-select');
+  $('image-state').textContent = image ? `${image.status} · ${image.reason}` : 'Image generation needs secure storage.';
+  const models = (state.library?.models || []).filter((m) => m.capability === 'image' && image?.installed?.includes(m.id));
+  const catalog = JSON.stringify(models.map((m) => m.id));
+  if (picker.dataset.catalog !== catalog) {
+    picker.replaceChildren(...models.map((m) => { const o = document.createElement('option'); o.value = m.id; o.textContent = `${m.name} · ${m.memoryGB} GB+`; return o; }));
+    picker.dataset.catalog = catalog;
+  }
+  if (image?.model && models.some((m) => m.id === image.model) && document.activeElement !== picker) picker.value = image.model;
+  $('assign-image').disabled = !models.length || busy || image?.status === 'busy';
+  $('test-image').disabled = !image || !['untested', 'ready', 'failed'].includes(image.status) || busy;
+}
+$('assign-image').addEventListener('click', () => act(() => window.companion.assignImage($('image-model-select').value)));
+$('test-image').addEventListener('click', () => act(() => window.companion.testImage()));
 function button(label, action) {
   const node = document.createElement('button'); node.className = 'secondary'; node.textContent = label; node.onclick = () => act(action); return node;
 }
@@ -151,7 +169,7 @@ function renderConnections() {
   }
   $('activity').replaceChildren();
   for (const job of state.activity || []) {
-    const row = document.createElement('p'); row.textContent = `${job.deviceName} · ${({ 'summarize-note': 'Summarize note', 'rewrite-note': 'Rewrite note', 'expand-note': 'Expand note', 'tone-note': 'Adjust tone', 'clarify-note': 'Grammar / clarity', 'markdown-note': 'Format Markdown', 'present-text': 'Style presentation', 'suggest-diary-day': 'Suggest diary details', 'reflect-thought': 'Reflect on thought' })[job.operation] || job.operation} · ${job.model} · ${job.state} · ${Math.max(0, Math.round(((job.finished || Date.now()) - job.created) / 1000))} s `;
+    const row = document.createElement('p'); row.textContent = `${job.deviceName} · ${({ 'summarize-note': 'Summarize note', 'rewrite-note': 'Rewrite note', 'expand-note': 'Expand note', 'tone-note': 'Adjust tone', 'clarify-note': 'Grammar / clarity', 'markdown-note': 'Format Markdown', 'present-text': 'Style presentation', 'suggest-diary-day': 'Suggest diary details', 'reflect-thought': 'Reflect on thought', 'suggest-note-metadata': 'Suggest title & tags', 'suggest-note-ideas': 'Suggest starting ideas', 'ask-note-image': 'Ask about an image', 'scan-note-image': 'Scan a page', 'generate-note-background': 'Generate background' })[job.operation] || job.operation} · ${job.model} · ${job.state} · ${Math.max(0, Math.round(((job.finished || Date.now()) - job.created) / 1000))} s `;
     if (['queued', 'running'].includes(job.state)) row.append(button('Cancel', () => window.companion.cancelJob(job.device, job.id)));
     $('activity').append(row);
   }
@@ -168,4 +186,5 @@ $('pair').onclick = async () => {
 setInterval(() => window.companion.state().then(render), 5000);
 
 $('speech-model-select').addEventListener('change', (event) => { selectedSpeechModelId = event.target.value; render(state); });
+$('test-vision').addEventListener('click', () => act(() => window.companion.testVision()));
 $('load-speech').addEventListener('click', () => act(() => window.companion.loadSpeech(selectedSpeechModelId)));

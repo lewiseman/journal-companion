@@ -6,6 +6,8 @@ const { Readable, Transform } = require('node:stream');
 const { pipeline } = require('node:stream/promises');
 const additionalWritingModels = require('./writing-models.cjs');
 const speechModels = require('./speech-models.cjs');
+const visionModels = require('./vision-models.cjs');
+const ocrModels = require('./ocr-models.cjs');
 
 // Pinned publisher/converter repositories + LFS SHA-256 (see docs/MODELS.md).
 const MODELS = Object.freeze([{
@@ -98,7 +100,7 @@ const MODELS = Object.freeze([{
   sha256: '4ab9818c9b3428eca96834c51fe294885608480991463f55bd9be53c822567c3',
   revision: 'f00927e80a399ecb0bcacca868131d5e9d4e77aa',
   license: 'CreativeML Open RAIL++-M',
-}, ...speechModels].map((model) => Object.freeze({ capability: 'text', collection: 'Lightweight', engine: 'llamacpp-completion', quantization: 'Q4_K_M', origin: 'Qwen / Hugging Face', ...model })));
+}, ...speechModels, ...visionModels, ...ocrModels].map((model) => Object.freeze({ capability: 'text', collection: 'Lightweight', engine: 'llamacpp-completion', quantization: 'Q4_K_M', origin: 'Qwen / Hugging Face', ...model })));
 const MODEL = MODELS[0];
 
 class CompanionError extends Error {
@@ -146,6 +148,7 @@ async function verifyModel(file, onProgress = () => {}, model = MODEL) {
 }
 
 async function downloadModel(directory, onProgress = () => {}, signal, { fetcher = fetch, statfs = fsp.statfs, model = MODEL } = {}) {
+  if (model.parts) return downloadParts(directory, onProgress, signal, { fetcher, statfs, model });
   await fsp.mkdir(directory, { recursive: true, mode: 0o700 });
   const disk = await statfs(directory);
   const required = model.bytes + 100 * 1024 * 1024;
@@ -199,6 +202,18 @@ async function downloadModel(directory, onProgress = () => {}, signal, { fetcher
   } finally {
     clearTimeout(idle); signal?.removeEventListener('abort', abort);
   }
+}
+
+// A multi-file Hugging Face model: each pinned part is fetched and verified
+// separately; already-verified parts are kept.
+async function downloadParts(directory, onProgress, signal, { fetcher, statfs, model }) {
+  let done = 0;
+  for (const part of artifactParts(model)) {
+    try { await verifyModel(path.join(directory, part.filename), () => {}, part); }
+    catch { await downloadModel(directory, (p) => onProgress((done + p * part.bytes) / model.bytes), signal, { fetcher, statfs, model: part }); }
+    done += part.bytes; onProgress(done / model.bytes);
+  }
+  return path.join(directory, artifactParts(model)[0].filename);
 }
 
 function openRegistry(storage) {
