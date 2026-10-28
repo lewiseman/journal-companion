@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const os = require('node:os');
 const path = require('node:path');
 const fs = require('node:fs/promises');
-const { METADATA_OPERATION, IDEAS_OPERATION, NOTE_HELP, validateMetadataInput, validateMetadataOutput, validateIdeasInput, validateIdeasOutput } = require('../src/note-help.cjs');
+const { METADATA_OPERATION, IDEAS_OPERATION, TEMPLATE_OPERATION, NOTE_HELP, validateMetadataInput, validateMetadataOutput, validateIdeasInput, validateIdeasOutput, validateTemplateInput, validateTemplateOutput } = require('../src/note-help.cjs');
 const { Runtime } = require('../src/runtime.cjs');
 const { Jobs } = require('../src/jobs.cjs');
 
@@ -97,4 +97,18 @@ test('capability advertises the note-help contract and operations', () => {
   const capability = library.capability();
   assert.equal(capability.noteHelpContract, 1);
   assert.ok(capability.operations.includes(METADATA_OPERATION) && capability.operations.includes(IDEAS_OPERATION));
+});
+
+test('templates take one bounded purpose and return a short skeleton', () => {
+  assert.deepEqual(validateTemplateInput('{"topic":"Weekly team meeting"}'), { topic: 'Weekly team meeting' });
+  for (const invalid of [{ topic: '' }, { topic: 'x'.repeat(121) }, { topic: 'a\nb' }, { topic: 'x', note: 'private' }])
+    assert.throws(() => validateTemplateInput(JSON.stringify(invalid)), { code: 'INVALID_INPUT' }, JSON.stringify(invalid));
+  const template = { title: 'Team meeting', body: '## Agenda\n- \n\n## Actions\n- [ ] ' };
+  assert.deepEqual(JSON.parse(validateTemplateOutput(JSON.stringify(template))), template);
+  for (const invalid of [
+    '{}', JSON.stringify({ ...template, extra: 1 }), JSON.stringify({ ...template, body: '' }), JSON.stringify({ ...template, title: 'x'.repeat(81) }),
+    JSON.stringify({ ...template, body: 'x'.repeat(1201) }), JSON.stringify({ ...template, body: Array(31).fill('- ').join('\n') }),
+    JSON.stringify({ ...template, body: 'a\tb' }), JSON.stringify({ ...template, title: 'a\nb' }),
+  ]) assert.throws(() => validateTemplateOutput(invalid), { code: 'INVALID_OUTPUT' }, invalid);
+  assert.ok(NOTE_HELP[TEMPLATE_OPERATION].responseFormat().json_schema.schema.required.includes('body'));
 });

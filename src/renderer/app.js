@@ -32,6 +32,7 @@ function render(next) {
   $('vision-state').textContent = state.vision ? `${state.vision.status} · ${state.vision.reason}${state.vision.ocrCheck ? ' · Scan check: EasyOCR installed.' : ' · Scan check: not installed.'}` : 'Image input needs secure storage.';
   $('test-vision').disabled = !state.vision || ['needs_download', 'incompatible', 'busy'].includes(state.vision.status) || busy;
   renderImage(busy);
+  renderCoding(busy);
   const speechModels = (state.library?.models || []).filter((m) => m.engine === 'whispercpp-transcription' && !m.filename.includes('silero') && !m.filename.includes('.en-'));
   if (!speechModels.some((m) => m.id === selectedSpeechModelId)) selectedSpeechModelId = state.speech?.model || speechModels[0]?.id;
   const speechPicker = $('speech-model-select');
@@ -76,7 +77,7 @@ function renderModels(disabled, downloading, unsupported) {
   const catalog = JSON.stringify(models.map(({ id, installed, loaded }) => ({ id, installed, loaded })));
   if (picker.dataset.catalog !== catalog) {
     picker.replaceChildren(...[
-      ['Popular', 'Writing · popular choices'], ['New', 'Writing · newer & interesting'],
+      ['Popular', 'Writing · popular choices'], ['New', 'Writing · newer & interesting'], ['Coding', 'Writing · coding & HTML'],
       ['Lightweight', 'Writing · lightweight'], ['transcription', 'Speech to text · Whisper available'],
       ['embedding', 'Search by meaning · load below'], ['speech', 'Text to speech · download only'], ['image', 'Image generation · download only'], ['vision', 'Image understanding · after self-test'], ['ocr', 'Scan checking · optional'],
     ].map(([collection, label]) => {
@@ -143,6 +144,24 @@ $('prompt-form').addEventListener('submit', async (event) => {
   requestPending = false; render(state);
 });
 
+function renderCoding(busy) {
+  const library = state.library, picker = $('coding-model-select');
+  const models = (library?.models || []).filter((m) => m.capability === 'text' && m.collection === 'Coding' && m.installed);
+  const catalog = JSON.stringify(models.map((m) => m.id));
+  if (picker.dataset.catalog !== catalog) {
+    const same = document.createElement('option'); same.value = ''; same.textContent = 'Same as the writing model';
+    picker.replaceChildren(same, ...models.map((m) => { const o = document.createElement('option'); o.value = m.id; o.textContent = `${m.name} · ${m.memoryGB} GB+`; return o; }));
+    picker.dataset.catalog = catalog;
+  }
+  if (document.activeElement !== picker) picker.value = library?.codingReady ? library.coding : '';
+  const chosen = library?.codingReady && models.find((m) => m.id === library.coding);
+  $('coding-state').textContent = chosen ? `Websites use ${chosen.name}.`
+    : library?.coding ? 'The chosen coding model is not downloaded. Websites use the writing model.'
+    : models.length ? 'Websites use the writing model.' : 'Websites use the writing model. Download a coding model above for better pages.';
+  $('assign-coding').disabled = busy || picker.value === (library?.codingReady ? library.coding : '');
+}
+$('coding-model-select').addEventListener('change', () => render(state));
+$('assign-coding').addEventListener('click', () => act(() => window.companion.assignCoding($('coding-model-select').value)));
 function renderImage(busy) {
   const image = state.image, picker = $('image-model-select');
   $('image-state').textContent = image ? `${image.status} · ${image.reason}` : 'Image generation needs secure storage.';

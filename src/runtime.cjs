@@ -219,48 +219,95 @@ class Runtime extends EventEmitter {
       return { ok: true, text };
     }, { job });
   }
-  // One bounded grammar-constrained JSON request described by [spec]
-  // (limits, system, validateInput/Output, responseFormat, params).
+  // One bounded request described by [spec] (limits, system, validateInput/
+  // Output, params, optional responseFormat). A [spec.coding] request runs on
+  // the assigned coding model, swapped in for the writing model and back.
   generateStructured(prompt, spec, { job = false } = {}) {
     spec.validateInput(prompt);
+    const coding = spec.coding && this.codingModel?.id !== this.model.id ? this.codingModel : null;
     return this.operation(async () => {
       if (!this.modelId || this.state.status !== 'ready') throw new CompanionError('NOT_READY', 'Load the model before sending a request.');
-      this.cancelRequested = false;
-      this.update({ status: 'working', detail: 'Writing on this Mac…', error: null });
-      const run = this.sdk.completion({
-        modelId: this.modelId, history: [{ role: 'system', content: spec.system }, { role: 'user', content: prompt }],
-        stream: true, kvCache: false, responseFormat: spec.responseFormat(),
-        generationParams: { predict: spec.limits.outputTokens, ...spec.params(),
-          ...(this.model.reasoningBudget === 0 ? { reasoning_budget: 0 } : {}) },
-      });
-      this.activeRun = run;
-      let text = '', stopReason;
+      if (!coding) return this.complete(prompt, spec, this.modelId, this.model);
       try {
-        await bounded((async () => {
-          for await (const token of run.tokenStream) {
-            if (typeof token !== 'string') throw new CompanionError('INVALID_OUTPUT', 'The model returned invalid text.');
-            text += token;
-            if (Buffer.byteLength(text) > spec.limits.outputBytes) {
-              await this.cancelGeneration();
-              throw new CompanionError('INVALID_OUTPUT', 'The result exceeded the output limit. Retry explicitly.');
-            }
-          }
-          await run.text;
-          if (run.final) stopReason = (await run.final).stopReason;
-        })());
+        this.update({ status: 'working', detail: `Switching to ${coding.name} for this website…`, error: null });
+        const file = path.join(this.directory, 'models', coding.filename);
+        await this.verifyOnce(file, coding);
+        await this.unloadText();
+        this.modelId = await this.loadText(file, coding);
       } catch (error) {
-        if (error.code === 'INVALID_OUTPUT' || !this.cancelRequested || !this.modelId || this.closed) throw error;
-        await bounded(this.sdk.getLoadedModelInfo({ modelId: this.modelId }), 5000);
-        this.update({ status: 'ready', detail: 'Request cancelled. The writing model is still ready.', error: null });
-        return { ok: false, error: { code: 'CANCELLED', message: 'Request cancelled.' } };
+        await this.restoreWriting();
+        const failure = error instanceof CompanionError ? error : null;
+        return { ok: false, error: { code: 'CODING_MODEL_FAILED', message: failure?.code === 'MISSING_WEIGHTS' || failure?.code === 'INVALID_WEIGHTS'
+          ? `${coding.name} is missing or incomplete. Download it again or choose another coding model.`
+          : `${coding.name} could not load. Quit memory-heavy apps or choose a smaller coding model.` } };
       }
-      this.activeRun = null;
-      this.update({ status: 'ready', detail: 'Finished locally. You can send another request.' });
-      if (stopReason === 'length') return { ok: false, error: { code: 'OUTPUT_LIMIT', message: `The result reached its ${spec.limits.outputTokens}-token limit. No partial result was returned.` } };
-      if (stopReason === 'cancelled') return { ok: false, error: { code: 'CANCELLED', message: 'Request cancelled.' } };
-      try { return { ok: true, text: spec.validateOutput(text) }; }
-      catch (error) { return { ok: false, error: { code: error.code, message: error.message } }; }
+      try { return await this.complete(prompt, spec, this.modelId, coding); }
+      finally { await this.restoreWriting(); }
     }, { job });
+  }
+  async complete(prompt, spec, modelId, model) {
+    this.cancelRequested = false;
+    this.update({ status: 'working', detail: 'Writing on this Mac…', error: null });
+    const run = this.sdk.completion({
+      modelId, history: [{ role: 'system', content: spec.system }, { role: 'user', content: prompt }],
+      stream: true, kvCache: false, ...(spec.responseFormat ? { responseFormat: spec.responseFormat() } : {}),
+      generationParams: { predict: spec.limits.outputTokens, ...spec.params(),
+        ...(model.reasoningBudget === 0 ? { reasoning_budget: 0 } : {}) },
+    });
+    this.activeRun = run;
+    let text = '', stopReason;
+    try {
+      await bounded((async () => {
+        for await (const token of run.tokenStream) {
+          if (typeof token !== 'string') throw new CompanionError('INVALID_OUTPUT', 'The model returned invalid text.');
+          text += token;
+          if (Buffer.byteLength(text) > spec.limits.outputBytes) {
+            await this.cancelGeneration();
+            throw new CompanionError('INVALID_OUTPUT', 'The result exceeded the output limit. Retry explicitly.');
+          }
+        }
+        await run.text;
+        if (run.final) stopReason = (await run.final).stopReason;
+      })(), spec.limits.timeoutMs);
+    } catch (error) {
+      if (error.code === 'INVALID_OUTPUT' || !this.cancelRequested || !this.modelId || this.closed) throw error;
+      await bounded(this.sdk.getLoadedModelInfo({ modelId }), 5000);
+      this.update({ status: 'ready', detail: 'Request cancelled. The writing model is still ready.', error: null });
+      return { ok: false, error: { code: 'CANCELLED', message: 'Request cancelled.' } };
+    }
+    this.activeRun = null;
+    this.update({ status: 'ready', detail: 'Finished locally. You can send another request.' });
+    if (stopReason === 'length') return { ok: false, error: { code: 'OUTPUT_LIMIT', message: `The result reached its ${spec.limits.outputTokens}-token limit. No partial result was returned.` } };
+    if (stopReason === 'cancelled') return { ok: false, error: { code: 'CANCELLED', message: 'Request cancelled.' } };
+    try { return { ok: true, text: spec.validateOutput(text) }; }
+    catch (error) { return { ok: false, error: { code: error.code, message: error.message } }; }
+  }
+  // Checksums are slow for large files, so each file is hashed once per identity.
+  async verifyOnce(file, model) {
+    const stat = await fs.stat(file).catch(() => null);
+    const stamp = stat && `${stat.dev}:${stat.ino}:${stat.size}:${stat.mtimeMs}:${stat.ctimeMs}`;
+    if (stamp && this.verified?.get(file) === stamp) return;
+    await this.verifyFile(file, () => {}, model);
+    (this.verified ??= new Map()).set(file, stamp);
+  }
+  async loadText(file, model) {
+    const sdk = await this.getSdk();
+    return bounded(sdk.loadModel({
+      modelSrc: file, modelType: 'llamacpp-completion', seed: false,
+      modelConfig: { ctx_size: 4096, device: 'gpu', predict: 192, verbosity: 0,
+        ...(model.reasoningBudget === 0 ? { reasoning_budget: 0 } : {}) },
+    }), 180000);
+  }
+  // Unloads only the text model; speech and embeddings share the SDK.
+  async unloadText() {
+    if (this.modelId && this.sdk) { const id = this.modelId; this.modelId = null; await bounded(this.sdk.unloadModel({ modelId: id }), 15000); }
+  }
+  async restoreWriting() {
+    await this.unloadText();
+    this.update({ status: 'loading', detail: `Reloading ${this.model.name}…` });
+    await this.verifyOnce(this.file, this.model);
+    this.modelId = await this.loadText(this.file, this.model);
+    this.update({ status: 'ready', detail: 'Finished locally. The writing model is ready again.', error: null });
   }
   async cancelGeneration() {
     // Work that cannot be cancelled by request ID (image generation) installs its own stop.

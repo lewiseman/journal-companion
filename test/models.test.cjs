@@ -14,9 +14,9 @@ async function directory(t) {
 }
 
 test('the offline catalog has distinct immutable publisher artifacts and rejects arbitrary IDs', () => {
-  assert.equal(MODELS.length, 43);
+  assert.equal(MODELS.length, 47);
   assert.equal(new Set(MODELS.map((model) => model.id)).size, MODELS.length);
-  assert.equal(MODELS.filter((model) => model.capability === 'text').length, 20);
+  assert.equal(MODELS.filter((model) => model.capability === 'text').length, 24);
   assert.equal(MODELS.filter((model) => model.capability === 'image').length, 2);
   assert.equal(MODELS.filter((model) => model.capability === 'transcription').length, 10);
   assert.equal(MODELS.filter((model) => model.capability === 'speech').length, 7);
@@ -45,13 +45,14 @@ test('the offline catalog has distinct immutable publisher artifacts and rejects
 
 test('expanded writing choices cover established and newer families within the 24 GB guidance', () => {
   const writing = MODELS.filter((model) => model.capability === 'text');
-  for (const family of ['Llama', 'Mistral', 'Phi-4', 'Gemma 4', 'Qwen3.5', 'LFM2.5', 'SmolLM3']) {
+  for (const family of ['Llama', 'Mistral', 'Phi-4', 'Gemma 4', 'Qwen3.5', 'LFM2.5', 'SmolLM3', 'Qwen2.5-Coder', 'Qwen3-Coder', 'gpt-oss']) {
     assert.ok(writing.some((model) => model.name.startsWith(family)), `Missing ${family}`);
   }
-  assert.deepEqual(new Set(writing.map((model) => model.collection)), new Set(['Lightweight', 'Popular', 'New']));
+  assert.deepEqual(new Set(writing.map((model) => model.collection)), new Set(['Lightweight', 'Popular', 'New', 'Coding']));
   for (const model of writing) {
     assert.ok(model.memoryGB <= 24);
-    assert.ok(model.bytes < 10e9, 'Keep weight files below 10 GB for this 24 GB catalog');
+    // Only the coding group may use the larger mixture-of-experts files.
+    assert.ok(model.bytes < (model.collection === 'Coding' ? 19e9 : 10e9), 'Keep weight files within the 24 GB catalog bounds');
     assert.match(model.filename, /\.gguf$/i);
     assert.ok(!/\d+-of-\d+/.test(model.filename), 'Only complete single-file models are supported');
   }
