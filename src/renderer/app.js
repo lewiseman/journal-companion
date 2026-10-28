@@ -151,7 +151,7 @@ function renderConnections() {
   }
   $('activity').replaceChildren();
   for (const job of state.activity || []) {
-    const row = document.createElement('p'); row.textContent = `${job.deviceName} · ${({ 'summarize-note': 'Summarize note', 'rewrite-note': 'Rewrite note', 'expand-note': 'Expand note', 'tone-note': 'Adjust tone', 'clarify-note': 'Grammar / clarity', 'markdown-note': 'Format Markdown', 'present-text': 'Style presentation', 'suggest-diary-day': 'Suggest diary details' })[job.operation] || job.operation} · ${job.model} · ${job.state} · ${Math.max(0, Math.round(((job.finished || Date.now()) - job.created) / 1000))} s `;
+    const row = document.createElement('p'); row.textContent = `${job.deviceName} · ${({ 'summarize-note': 'Summarize note', 'rewrite-note': 'Rewrite note', 'expand-note': 'Expand note', 'tone-note': 'Adjust tone', 'clarify-note': 'Grammar / clarity', 'markdown-note': 'Format Markdown', 'present-text': 'Style presentation', 'suggest-diary-day': 'Suggest diary details', 'reflect-thought': 'Reflect on thought' })[job.operation] || job.operation} · ${job.model} · ${job.state} · ${Math.max(0, Math.round(((job.finished || Date.now()) - job.created) / 1000))} s `;
     if (['queued', 'running'].includes(job.state)) row.append(button('Cancel', () => window.companion.cancelJob(job.device, job.id)));
     $('activity').append(row);
   }

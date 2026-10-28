@@ -48,6 +48,8 @@ H01 adds [safe presentation proposals](docs/PRESENTATION.md) with grammar-constr
 
 J01 adds [diary-day suggestions](docs/DIARY.md): a grammar-constrained title/mood/themes operation on the same durable job service.
 
+L01 adds [one-line Flow thought reflections](docs/REFLECTION.md) as a bounded `reflect-thought` operation.
+
 ## Android voice
 
 Android microphone capture, duplex Whisper transcription, reviewed Notes/Flow text, and recoverable typed/spoken-input diary conversation are described in [VOICE.md](docs/VOICE.md). Load a multilingual Whisper model plus Silero VAD in the companion. Replies use text fallback; synthesized playback is unavailable. The guide records measured latency, retention/acceptance boundaries, setup, tests, and unverified physical-device/language coverage.
