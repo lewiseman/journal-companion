@@ -7,8 +7,8 @@ const CHOICES = [
   ['system', 'Like my Mac', 'assets/art/theme_system.png'],
 ];
 
-/** Side-bar button plus a picture-first sheet for light, dark or following macOS. */
-export function appearanceButton() {
+/** Side-bar button (drawn from `content`) plus a picture-first sheet for light, dark or following macOS. */
+export function appearanceButton(content) {
   const cards = new Map();
   const sheet = h('div', { class: 'appearance paper', role: 'dialog', 'aria-label': 'Appearance', hidden: true },
     h('p', { class: 'eyebrow', text: 'Appearance' }),
@@ -20,8 +20,8 @@ export function appearanceButton() {
       cards.set(theme, card);
       return card;
     })));
-  const button = h('button', { class: 'tab', 'aria-haspopup': 'dialog', onclick: (e) => { e.stopPropagation(); sheet.hidden = !sheet.hidden; } },
-    icon('theme'), h('span', { text: 'Look' }));
+  const button = h('button', { class: 'tab', 'aria-haspopup': 'dialog', 'aria-expanded': 'false', onclick: (e) => { e.stopPropagation(); show(sheet.hidden); } }, content);
+  const show = (open) => { sheet.hidden = !open; button.setAttribute('aria-expanded', String(open)); };
 
   function mark(theme) { for (const [key, card] of cards) card.setAttribute('aria-checked', String(key === theme)); }
   async function choose(theme) {
@@ -29,8 +29,8 @@ export function appearanceButton() {
     const result = await act(() => window.companion.setTheme(theme));
     if (result?.ok) mark(result.theme);
   }
-  document.addEventListener('click', (e) => { if (!sheet.hidden && !sheet.contains(e.target)) sheet.hidden = true; });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') sheet.hidden = true; });
+  document.addEventListener('click', (e) => { if (!sheet.hidden && !sheet.contains(e.target)) show(false); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') show(false); });
   window.companion.theme().then((result) => mark(result?.theme || 'system'));
   return [button, sheet];
 }

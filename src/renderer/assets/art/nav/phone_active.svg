@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+  <defs>
+    <filter id="paper" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="1.4" numOctaves="2" seed="4" result="n"/>
+      <feColorMatrix in="n" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .22 0" result="g"/>
+      <feComposite in="g" in2="SourceGraphic" operator="in" result="grain"/>
+      <feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="grain"/></feMerge>
+    </filter>
+    <linearGradient id="body" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a596d6"/><stop offset="1" stop-color="#7e6ebb"/></linearGradient>
+  </defs>
+  <path d="M74 20c4.4 4.6 6.6 10 6.6 16.2M79.4 13.6c6 6.4 9 13.8 9 22.4" fill="none" stroke="#8c9b81" stroke-width="3.4" stroke-linecap="round"/>
+  <g transform="rotate(-7 48 50)">
+    <path d="M33.5 13.2c9.6-1 19.8-1.2 29.6-.4 3.6.3 6.3 3.2 6.4 6.8.5 19 .4 38 .1 57-.1 3.6-2.9 6.5-6.5 6.7-9.9.5-19.9.6-29.8 0-3.6-.2-6.4-3.2-6.4-6.8-.3-19-.4-38 .1-57 .1-3.4 2.9-6.2 6.5-6.3Z" fill="#4e3e7a" opacity=".24" transform="translate(1.8 2.4)"/>
+    <path d="M33.5 13.2c9.6-1 19.8-1.2 29.6-.4 3.6.3 6.3 3.2 6.4 6.8.5 19 .4 38 .1 57-.1 3.6-2.9 6.5-6.5 6.7-9.9.5-19.9.6-29.8 0-3.6-.2-6.4-3.2-6.4-6.8-.3-19-.4-38 .1-57 .1-3.4 2.9-6.2 6.5-6.3Z" fill="url(#body)" filter="url(#paper)"/>
+    <path d="M36.2 21.6c8-.5 16.2-.6 24.2-.1 1.5.1 2.6 1.3 2.6 2.8.3 14.6.3 29.4 0 44-.1 1.5-1.2 2.7-2.7 2.8-8 .4-16 .5-24 0-1.5-.1-2.7-1.3-2.7-2.8-.3-14.6-.3-29.4.1-44 0-1.5 1.1-2.6 2.5-2.7Z" fill="#f6eedb" filter="url(#paper)"/>
+    <path d="M38.6 30.4c6.4-.9 13-1 19.4-.4 1 .1 1.7 1 1.7 2v13.4c0 1-.8 1.9-1.8 2l-12.4.6-4.6 4.4.6-4.6-2.9-.2c-1-.1-1.8-.9-1.8-1.9V32.4c0-1 .8-1.9 1.8-2Z" fill="#a9b89b" filter="url(#paper)"/>
+    <path d="M42.4 36.6h11.6M42.4 41.6h7.4" stroke="#5b4a8f" stroke-width="2.4" stroke-linecap="round"/>
+    <rect x="43" y="16" width="10.5" height="2.4" rx="1.2" fill="#4e3e7a" opacity=".55"/>
+    <circle cx="48.4" cy="76.6" r="2.2" fill="#f6eedb"/>
+  </g>
+  <path d="M20.4 18.6c.5 3.6 1.9 5.2 5.5 5.7-3.6.5-5 2.1-5.5 5.7-.5-3.6-1.9-5.2-5.5-5.7 3.6-.5 5-2.1 5.5-5.7Z" fill="#cfaa62"/>
+</svg>

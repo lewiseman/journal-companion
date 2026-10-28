@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+  <defs>
+    <filter id="paper" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="1.4" numOctaves="2" seed="4" result="n"/>
+      <feColorMatrix in="n" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .22 0" result="g"/>
+      <feComposite in="g" in2="SourceGraphic" operator="in" result="grain"/>
+      <feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="grain"/></feMerge>
+    </filter>
+    <linearGradient id="body" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9a8bcb"/><stop offset="1" stop-color="#7a6bb4"/></linearGradient>
+  </defs>
+  <g transform="rotate(-7 48 50)">
+    <path d="M33.5 13.2c9.6-1 19.8-1.2 29.6-.4 3.6.3 6.3 3.2 6.4 6.8.5 19 .4 38 .1 57-.1 3.6-2.9 6.5-6.5 6.7-9.9.5-19.9.6-29.8 0-3.6-.2-6.4-3.2-6.4-6.8-.3-19-.4-38 .1-57 .1-3.4 2.9-6.2 6.5-6.3Z" fill="#4e3e7a" opacity=".22" transform="translate(1.8 2.4)"/>
+    <path d="M33.5 13.2c9.6-1 19.8-1.2 29.6-.4 3.6.3 6.3 3.2 6.4 6.8.5 19 .4 38 .1 57-.1 3.6-2.9 6.5-6.5 6.7-9.9.5-19.9.6-29.8 0-3.6-.2-6.4-3.2-6.4-6.8-.3-19-.4-38 .1-57 .1-3.4 2.9-6.2 6.5-6.3Z" fill="url(#body)" filter="url(#paper)"/>
+    <path d="M36.2 21.6c8-.5 16.2-.6 24.2-.1 1.5.1 2.6 1.3 2.6 2.8.3 14.6.3 29.4 0 44-.1 1.5-1.2 2.7-2.7 2.8-8 .4-16 .5-24 0-1.5-.1-2.7-1.3-2.7-2.8-.3-14.6-.3-29.4.1-44 0-1.5 1.1-2.6 2.5-2.7Z" fill="#e9dfc8" filter="url(#paper)"/>
+    <rect x="43" y="16" width="10.5" height="2.4" rx="1.2" fill="#4e3e7a" opacity=".55"/>
+    <circle cx="48.4" cy="76.6" r="2.2" fill="#e9dfc8" opacity=".85"/>
+  </g>
+</svg>

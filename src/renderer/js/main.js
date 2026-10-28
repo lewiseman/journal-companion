@@ -16,25 +16,45 @@ const app = document.getElementById('app');
 const views = { home: document.getElementById('view-home'), phones: document.getElementById('view-phones'), skills: document.getElementById('view-skills') };
 const tabs = {};
 
+const rail = document.getElementById('rail');
+const glow = [h('span', { class: 'rail-glow' }), h('span', { class: 'rail-rim' })];
+
+/** Slides the edge glow to the selected tab, like the phone's bottom bar. */
+function placeGlow() {
+  const current = Object.values(tabs).find((tab) => tab.getAttribute('aria-current') === 'page');
+  rail.classList.toggle('no-glow', !current);
+  if (current) rail.style.setProperty('--glow-y', `${current.offsetTop + current.offsetHeight / 2}px`);
+}
+
 function go(name) {
   for (const [key, view] of Object.entries(views)) view.classList.toggle('active', key === name);
   for (const [key, tab] of Object.entries(tabs)) tab.setAttribute('aria-current', key === name ? 'page' : 'false');
+  placeGlow();
 }
 
-const TABS = [['home', 'home', 'Home'], ['phones', 'phone', 'Phones'], ['skills', 'brain', 'Skills']];
+/** Cut-paper art from the phone's navigation: a quiet version that crossfades to the lively one. */
+const art = (off, on = off) => h('span', { class: `tab-art${on === off ? ' single' : ''}` },
+  h('img', { class: 'off', src: off, alt: '' }), h('img', { class: 'on', src: on, alt: '' }));
+const navContent = (look, label) => [art(...look), h('span', { text: label })];
+
+const TABS = [
+  ['home', ['assets/art/more_local_qvac.png'], 'Home'],
+  ['phones', ['assets/art/nav/phone_inactive.svg', 'assets/art/nav/phone_active.svg'], 'Phones'],
+  ['skills', ['assets/art/nav/more_inactive.png', 'assets/art/nav/more_active.png'], 'Skills'],
+];
 const pips = {};
-const rail = document.getElementById('rail');
-rail.append(h('img', { class: 'rail-logo', src: 'assets/art/j.png', alt: 'Journal' }));
-for (const [key, iconName, label] of TABS) {
+rail.append(...glow, h('img', { class: 'rail-logo', src: 'assets/art/j.png', alt: 'Journal' }));
+for (const [key, look, label] of TABS) {
   pips[key] = h('span', { class: 'tab-pip', hidden: true });
-  tabs[key] = h('button', { class: 'tab', onclick: () => go(key) }, icon(iconName), h('span', { text: label }), pips[key]);
+  tabs[key] = h('button', { class: 'tab', onclick: () => go(key) }, navContent(look, label), pips[key]);
   rail.append(tabs[key]);
 }
-const [lookButton, lookSheet] = appearanceButton();
+const [lookButton, lookSheet] = appearanceButton(navContent(['assets/art/nav/more_appearance.png'], 'Look'));
 document.body.append(lookSheet);
-rail.append(h('button', { class: 'tab', onclick: () => showBook() }, icon('book'), h('span', { text: 'Book' })),
+rail.append(h('button', { class: 'tab', onclick: () => showBook() }, navContent(['assets/art/nav/diary_inactive.png', 'assets/art/nav/diary_active.png'], 'Book')),
   lookButton,
   h('div', { class: 'rail-foot', title: 'Everything stays on this Mac and your home Wi-Fi.' }, icon('shield'), h('span', { text: 'Private' })));
+window.addEventListener('resize', placeGlow);
 
 homeView(views.home, { go });
 phonesView(views.phones);

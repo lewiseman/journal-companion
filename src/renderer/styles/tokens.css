@@ -24,6 +24,7 @@
   --on-primary: #faf8ff;
   --plum: #715b83;
   --plum-faint: #a99a91;
+  --glow: #9a86f0;
 
   --board-1: #c4add2; --board-2: #947ba4; --board-3: #5b466f; --board-edge: #4e3b60;
   --page-block-1: #f3e8cf; --page-block-2: #c6b596;
@@ -61,6 +62,7 @@
     --on-primary: #17151d;
     --plum: #c6b1d8;
     --plum-faint: #5f5866;
+    --glow: #b9b7ff;
 
     --sage: #a9c39b; --sage-wash: #2b3629;
     --honey: #e3bd73; --honey-wash: #3d3527;

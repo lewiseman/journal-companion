@@ -29,7 +29,7 @@ test('every asset the page references exists and resolves', () => {
   const refs = new Set([
     ...[...html.matchAll(/(?:src|href)="([^"]+)"/g)].map((m) => `/${m[1]}`),
     ...[...css.matchAll(/url\(['"]?\.\.\/([^'")]+)/g)].map((m) => `/${m[1]}`),
-    ...[...js.matchAll(/['"`](assets\/[^'"`]+\.(?:png|webp))['"`]/g)].map((m) => `/${m[1]}`),
+    ...[...js.matchAll(/['"`](assets\/[^'"`]+\.(?:png|webp|svg))['"`]/g)].map((m) => `/${m[1]}`),
   ]);
   assert.ok(refs.size > 5);
   for (const ref of refs) {
