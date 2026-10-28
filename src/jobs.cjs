@@ -8,7 +8,8 @@ const { PRESENTATION_OPERATION, validatePresentationInput, validatePresentationO
 const { DIARY_OPERATION, validateDiaryInput, validateDiaryOutput } = require('./diary.cjs');
 const { QUESTION_OPERATION, validateQuestionInput, validateQuestionOutput } = require('./question.cjs');
 const { HISTORY_OPERATION, validateHistoryInput, validateHistoryOutput } = require('./history.cjs');
-const JOB_OPERATIONS = () => [CONVERSATION_OPERATION, 'text', SUMMARY_OPERATION, ...Object.keys(OPERATIONS), PRESENTATION_OPERATION, DIARY_OPERATION, QUESTION_OPERATION, HISTORY_OPERATION];
+const { NOTE_HELP } = require('./note-help.cjs');
+const JOB_OPERATIONS = () => [CONVERSATION_OPERATION, 'text', SUMMARY_OPERATION, ...Object.keys(OPERATIONS), PRESENTATION_OPERATION, DIARY_OPERATION, QUESTION_OPERATION, HISTORY_OPERATION, ...Object.keys(NOTE_HELP)];
 const TERMINAL = new Set(['completed', 'failed', 'cancelled', 'interrupted', 'expired']);
 const RETENTION = 24 * 60 * 60 * 1000;
 const TOMBSTONE_RETENTION = 7 * RETENTION;
@@ -48,6 +49,7 @@ class Jobs extends EventEmitter {
     if (input.operation === DIARY_OPERATION) validateDiaryInput(input.prompt);
     if (input.operation === QUESTION_OPERATION) validateQuestionInput(input.prompt);
     if (input.operation === HISTORY_OPERATION) validateHistoryInput(input.prompt);
+    if (Object.hasOwn(NOTE_HELP, input.operation)) NOTE_HELP[input.operation].validateInput(input.prompt);
     if (input.expires !== undefined && (!Number.isSafeInteger(input.expires) || input.expires > this.now() + RETENTION + 60000)) throw new CompanionError('INVALID_INPUT', 'Supply an expiry within 24 hours. Check both device clocks.');
     const key = this.key(device, input.id), digest = createHash('sha256').update(JSON.stringify([input.operation, input.prompt])).digest('hex');
     await this.vault.change((data) => {
@@ -127,6 +129,7 @@ class Jobs extends EventEmitter {
           if (result.ok && job.operation === DIARY_OPERATION) result.text = validateDiaryOutput(result.text);
           if (result.ok && job.operation === QUESTION_OPERATION) result.text = validateQuestionOutput(result.text);
           if (result.ok && job.operation === HISTORY_OPERATION) result.text = validateHistoryOutput(result.text);
+          if (result.ok && Object.hasOwn(NOTE_HELP, job.operation)) result.text = NOTE_HELP[job.operation].validateOutput(result.text);
         }
         catch (error) { result = { ok: false, error: { code: error.code === 'INVALID_OUTPUT' ? error.code : 'RUNTIME_FAILED' } }; }
         await this.vault.change((data) => {
