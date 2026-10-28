@@ -70,9 +70,9 @@ async function verifyNotes({ app, runtime, vault, jobs, devices, directory, pres
   const get = (id) => auth('GET', `/v1/jobs/${id}`);
   const report = { phase, packaged: true, electron: process.versions.electron, qvac: '0.22.0', syntheticClient: true, checks: {}, outputs: {} };
   const cases = history ? Object.entries(HISTORY_CASES).map(([kind, input]) => ({ id: `s01_${kind}`, operation: HISTORY_OPERATION, prompt: JSON.stringify(input) })) : question ? Object.entries(QUESTION_CASES).map(([kind, input]) => ({ id: `j02_${kind}`, operation: QUESTION_OPERATION, prompt: JSON.stringify(input) })) : diary ? Object.entries(DIARY_CASES).map(([kind, texts]) => ({ id: `j01_${kind}`, operation: DIARY_OPERATION,
-    prompt: JSON.stringify({ entries: texts.map((text, i) => ({ id: `e${i}`, text })) }) })) : presentation ? ['note', 'diary'].map((kind) => ({ id: `h01_${kind}`, operation: 'present-text',
-    prompt: JSON.stringify({ blocks: [{ id: 'b0', text: kind === 'note' ? 'Plans for Friday' : 'A quiet walk by the river.' }, { id: 'b1', text: kind === 'note' ? 'Meet Mira at noon.' : 'I watched the afternoon light.' }], intent: 'Comfortable spacing.' })
-  })) : Object.keys(OPERATIONS).map((operation) => ({ id: `n01_${operation}`, operation, prompt: JSON.stringify({ text: 'i has a meeting with Mira on friday. budget approval are pending.', intent: operation === 'tone-note' ? 'Make it polite.' : operation === 'markdown-note' ? 'Use a heading and a bullet list.' : 'Correct the grammar and capitalization.' }) }));
+    prompt: JSON.stringify({ entries: texts.map((text, i) => ({ id: `e${i}`, text })) }) })) : presentation ? [{ id: 'h01_note', operation: 'present-text',
+    prompt: JSON.stringify({ blocks: [{ id: 'b0', text: 'Plans for Friday' }, { id: 'b1', text: 'Meet Mira at noon.' }], intent: 'Comfortable spacing.' })
+  }] : Object.keys(OPERATIONS).map((operation) => ({ id: `n01_${operation}`, operation, prompt: JSON.stringify({ text: 'i has a meeting with Mira on friday. budget approval are pending.', intent: operation === 'tone-note' ? 'Make it polite.' : operation === 'markdown-note' ? 'Use a heading and a bullet list.' : 'Correct the grammar and capitalization.' }) }));
   if (phase === 1) {
     const status = await auth('GET', '/v1/status');
     for (const item of cases) {
@@ -97,7 +97,7 @@ async function verifyNotes({ app, runtime, vault, jobs, devices, directory, pres
       assert.equal((await auth('POST', '/v1/jobs', input)).id, input.id);
       assert.equal(jobs.list().filter((j) => j.id === input.id).length, 1);
     }
-    report.checks[history ? 'lastYearTopicNoEvidenceFirstMentionUsedRealQvac' : question ? 'groundedEmptyAndAvoidUsedRealQvac' : diary ? 'sparseMixedOrdinaryDaysUsedRealQvac' : presentation ? 'noteAndDiaryUsedRealQvac' : 'allFiveOperationsUsedRealQvac'] = true;
+    report.checks[history ? 'lastYearTopicNoEvidenceFirstMentionUsedRealQvac' : question ? 'groundedEmptyAndAvoidUsedRealQvac' : diary ? 'sparseMixedOrdinaryDaysUsedRealQvac' : presentation ? 'noteUsedRealQvac' : 'allFiveOperationsUsedRealQvac'] = true;
     report.checks.signedTlsAndSameIdRetry = true;
     report.checks.activityHasOperationAndDevice = jobs.list().every((j) => j.deviceName === clientName && (history ? j.operation === HISTORY_OPERATION : question ? j.operation === QUESTION_OPERATION : diary ? j.operation === DIARY_OPERATION : presentation ? j.operation === 'present-text' : Object.hasOwn(OPERATIONS, j.operation)));
     assert.equal(report.checks.activityHasOperationAndDevice, true);

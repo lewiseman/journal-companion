@@ -6,6 +6,7 @@ const { Vault } = require('./vault.cjs');
 const { Library } = require('./library.cjs');
 const { Jobs } = require('./jobs.cjs');
 const { Speech } = require('./speech.cjs');
+const { Embedder } = require('./embed.cjs');
 const { Voice } = require('./voice.cjs');
 const { Talk } = require('./talk.cjs');
 const { Vision } = require('./vision.cjs');
@@ -31,8 +32,8 @@ if (verification || connectionDemo) {
 if (connectionDemo) process.on('SIGTERM', () => app.quit());
 let window;
 let runtime;
-let library, vault, jobs, devices, speech, voice, talk, vision, background, serviceError;
-const snapshot = () => ({ ...runtime.snapshot(), library: library?.snapshot(), devices: devices?.snapshot(), activity: [...(jobs?.list() || []), ...(voice?.list() || [])], speech: speech?.capability(), vision: vision?.capability(), image: background && { ...background.capability(), installed: background.installedIds }, serviceError });
+let library, vault, jobs, devices, speech, embedder, voice, talk, vision, background, serviceError;
+const snapshot = () => ({ ...runtime.snapshot(), library: library?.snapshot(), devices: devices?.snapshot(), activity: [...(jobs?.list() || []), ...(voice?.list() || [])], speech: speech?.capability(), embedding: embedder?.capability(), vision: vision?.capability(), image: background && { ...background.capability(), installed: background.installedIds }, serviceError });
 const publish = () => { if (window && !window.isDestroyed()) window.webContents.send('companion:state', snapshot()); };
 let quitting = false;
 const APP_URL = 'journal://companion/index.html';
@@ -77,6 +78,7 @@ else {
     runtime = new Runtime(app.getPath('userData'));
     runtime.on('state', () => { publish(); if (!quitting && !runtime.busy && !runtime.audioReserved) jobs?.pump(); });
     speech = new Speech(runtime); speech.on('change', () => { publish(); if (!quitting && !speech.busy && !voice?.pumping) jobs?.pump(); });
+    embedder = new Embedder(runtime); embedder.on('change', () => { publish(); if (!quitting && !embedder.busy) jobs?.pump(); });
     runtime.on('token', (value) => { if (!window.isDestroyed()) window.webContents.send('companion:token', value); });
     library = new Library(runtime);
     library.on('change', publish);
@@ -98,6 +100,8 @@ else {
     const reconcile = async (action) => { const result = await action(); await library.reconcile(); publish(); return result; };
     handle('state', noArgs(snapshot));
     handle('loadSpeech', withModel((model) => speech.load(model.id)));
+    handle('loadEmbedding', withModel((model) => embedder.load(model.id)));
+    handle('unloadEmbedding', noArgs(() => embedder.unload()));
     const images = () => { if (!background) throw new CompanionError('SECURE_STORAGE', 'Image generation needs secure storage.'); return background; };
     handle('assignImage', withModel((model) => images().assign(model.id)));
     handle('testImage', noArgs(() => images().selfTest()));
@@ -157,6 +161,7 @@ else {
     await runtime.initialize();
     await library.initialize();
     await speech.initialize();
+    await embedder.initialize();
     try {
       const protector = { isEncryptionAvailable: () => safeStorage.isAsyncEncryptionAvailable(),
         encryptString: (value) => safeStorage.encryptStringAsync(value),
@@ -164,7 +169,7 @@ else {
       vault = new Vault(app.getPath('userData'), protector); await vault.initialize();
       voice = new Voice(vault, speech); voice.on('change', () => { publish(); if (!quitting && !speech.busy && !voice.pumping) jobs?.pump(); }); await voice.initialize();
       talk = new Talk(vault, speech, runtime); voice.talk = talk; talk.on('change', () => { publish(); if (quitting || talk.active) return; voice.pump().catch(() => {}); if (!speech.busy && !voice.pumping) jobs?.pump(); });
-      jobs = new Jobs(vault, runtime, library);
+      jobs = new Jobs(vault, runtime, library); jobs.embedder = embedder;
       vision = new Vision(runtime, { protector }); jobs.vision = vision; vision.on('change', publish);
       library.on('change', () => vision.reconcile().catch(() => {})); await vision.initialize();
       background = new Background(runtime, { protector }); jobs.background = background; background.on('change', publish);

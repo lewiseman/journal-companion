@@ -28,7 +28,7 @@ truncated results without changing source. H01 does not replace/download models.
 
 Run `npm test`, `npm run package`, then
 `node scripts/verify-notes.cjs /absolute/new/empty/evidence /absolute/model.gguf --presentation`.
-The shared N01 harness selects synthetic H01 note/diary cases with this flag and
+The shared N01 harness selects synthetic H01 note cases with this flag and
 otherwise preserves its original five-operation behavior. It restarts the
 packaged app, retrieves both results, acknowledges them and removes test trust.
 Reports are `presentation-native-1.json` and `presentation-native-2.json`.

@@ -4,8 +4,9 @@ let requestPending = false;
 let pairingExpires = 0;
 let selectedModelId;
 let selectedSpeechModelId;
+let selectedEmbeddingModelId;
 // Download-only capabilities and the future feature each one is kept for.
-const futureUse = { image: 'image generation', transcription: 'speech-to-text', speech: 'read-aloud', vision: 'note image questions', ocr: 'scan checking' };
+const futureUse = { embedding: 'search by meaning', image: 'image generation', transcription: 'speech-to-text', speech: 'read-aloud', vision: 'note image questions', ocr: 'scan checking' };
 const labels = { unavailable: ['AI unavailable', 'SETUP NEEDED'], loading: ['Getting things ready', 'LOADING'], ready: ['Your companion is ready', 'READY'], working: ['A thought is taking shape', 'WORKING'], failed: ['AI needs attention', 'FAILED'] };
 function render(next) {
   state = next;
@@ -45,7 +46,27 @@ function render(next) {
   const vadInstalled = state.library?.models.some((m) => m.filename === 'ggml-silero-v5.1.2.bin' && m.installed);
   $('load-speech').disabled = !selectedSpeech?.installed || !vadInstalled || ['loading', 'busy'].includes(state.speech?.status) || state.status === 'working';
   if (!selectedSpeech?.installed || !vadInstalled) $('speech-state').textContent += ' · Download the selected Whisper model and Silero VAD first.';
+  renderEmbedding(busy);
   renderConnections();
+}
+function renderEmbedding(busy) {
+  const embedding = state.embedding;
+  $('embedding-state').textContent = embedding ? `${embedding.status} · ${embedding.reason}` : 'Embeddings unavailable';
+  const models = (state.library?.models || []).filter((m) => m.capability === 'embedding');
+  if (!models.some((m) => m.id === selectedEmbeddingModelId)) selectedEmbeddingModelId = embedding?.model || models[0]?.id;
+  const picker = $('embedding-model-select');
+  const catalog = JSON.stringify(models.map(({ id, installed }) => ({ id, installed })));
+  if (picker.dataset.catalog !== catalog) {
+    picker.replaceChildren(...models.map((m) => { const option = document.createElement('option'); option.value = m.id; option.textContent = `${m.name}${m.installed ? ' · Downloaded' : ' · Needs download'}`; return option; }));
+    picker.dataset.catalog = catalog;
+  }
+  picker.value = selectedEmbeddingModelId;
+  const working = ['loading', 'busy'].includes(embedding?.status);
+  picker.disabled = working;
+  const selected = models.find((m) => m.id === selectedEmbeddingModelId);
+  $('load-embedding').disabled = !selected?.installed || working || (embedding?.status === 'ready' && embedding.model === selectedEmbeddingModelId);
+  $('unload-embedding').hidden = embedding?.status !== 'ready'; $('unload-embedding').disabled = working || busy;
+  if (!selected?.installed) $('embedding-state').textContent += ' · Download the selected embedding model first.';
 }
 function renderModels(disabled, downloading, unsupported) {
   const models = state.library?.models || [];
@@ -57,7 +78,7 @@ function renderModels(disabled, downloading, unsupported) {
     picker.replaceChildren(...[
       ['Popular', 'Writing · popular choices'], ['New', 'Writing · newer & interesting'],
       ['Lightweight', 'Writing · lightweight'], ['transcription', 'Speech to text · Whisper available'],
-      ['speech', 'Text to speech · download only'], ['image', 'Image generation · download only'], ['vision', 'Image understanding · after self-test'], ['ocr', 'Scan checking · optional'],
+      ['embedding', 'Search by meaning · load below'], ['speech', 'Text to speech · download only'], ['image', 'Image generation · download only'], ['vision', 'Image understanding · after self-test'], ['ocr', 'Scan checking · optional'],
     ].map(([collection, label]) => {
       const group = document.createElement('optgroup'); group.label = label;
       for (const model of models.filter((entry) => Object.hasOwn(futureUse, collection) ? entry.capability === collection : entry.capability === 'text' && entry.collection === collection)) {
@@ -77,7 +98,7 @@ function renderModels(disabled, downloading, unsupported) {
   $('model-name').textContent = model.name;
   $('model-meta').textContent = `${model.quantization} · ${size} download${files} · ${model.license}`;
   $('model-description').textContent = model.description;
-  $('model-guidance').textContent = `${model.tier} · ${model.memoryGB} GB+ system memory suggested. ${image ? `${model.engine === 'whispercpp-transcription' ? 'Whisper and Silero VAD enable Android voice capture.' : model.capability === 'vision' ? 'Downloads the model and its image projector; run the image self-test before phones can ask about note images or scan pages.' : model.capability === 'ocr' ? 'Optional second reader for scanned pages: words it reads differently are flagged on the phone for checking.' : `Download weights now; ${future} will be added later.`}${model.source === 'registry' ? ' Downloads from peers in the QVAC model registry.' : ''}` : model.fitHint || 'Speed depends on your Mac.'}`;
+  $('model-guidance').textContent = `${model.tier} · ${model.memoryGB} GB+ system memory suggested. ${image ? `${model.engine === 'whispercpp-transcription' ? 'Whisper and Silero VAD enable Android voice capture.' : model.capability === 'vision' ? 'Downloads the model and its image projector; run the image self-test before phones can ask about note images or scan pages.' : model.capability === 'ocr' ? 'Optional second reader for scanned pages: words it reads differently are flagged on the phone for checking.' : model.capability === 'embedding' ? 'After downloading, load it under Search by meaning so opted-in phones can find entries by meaning.' : `Download weights now; ${future} will be added later.`}${model.source === 'registry' ? ' Downloads from peers in the QVAC model registry.' : ''}` : model.fitHint || 'Speed depends on your Mac.'}`;
   $('download').textContent = model.installed ? 'Download a fresh copy ↓' : `${image ? 'Download' : 'Download & use'} · ${size} ↓`;
   $('use-model').hidden = !model.installed || image;
   $('use-model').textContent = model.loaded ? 'Currently loaded' : 'Use downloaded model';
@@ -85,7 +106,7 @@ function renderModels(disabled, downloading, unsupported) {
   $('choose').hidden = image;
   $('install').textContent = image ? 'Download selected model' : 'Download selected without loading';
   $('model-installed').hidden = !model.installed;
-  $('model-installed').textContent = model.loaded ? '✓ Active writing model · runs locally' : image ? `✓ Downloaded · kept for future ${future}` : '✓ Downloaded · ready to load';
+  $('model-installed').textContent = model.loaded ? '✓ Active writing model · runs locally' : model.capability === 'embedding' ? '✓ Downloaded · load it under Search by meaning' : image ? `✓ Downloaded · kept for future ${future}` : '✓ Downloaded · ready to load';
   const transfer = state.library.download;
   $('model-download-status').hidden = transfer?.model !== model.id;
   $('model-download-status').textContent = transfer?.status === 'downloading' ? `Downloading · ${Math.round(transfer.progress * 100)}%. Writing remains available.` : transfer?.error || (transfer?.status === 'installed' ? 'Download verified. Your active writing model is unchanged.' : '');
@@ -188,3 +209,6 @@ setInterval(() => window.companion.state().then(render), 5000);
 $('speech-model-select').addEventListener('change', (event) => { selectedSpeechModelId = event.target.value; render(state); });
 $('test-vision').addEventListener('click', () => act(() => window.companion.testVision()));
 $('load-speech').addEventListener('click', () => act(() => window.companion.loadSpeech(selectedSpeechModelId)));
+$('embedding-model-select').addEventListener('change', (event) => { selectedEmbeddingModelId = event.target.value; render(state); });
+$('load-embedding').addEventListener('click', () => act(() => window.companion.loadEmbedding(selectedEmbeddingModelId)));
+$('unload-embedding').addEventListener('click', () => act(() => window.companion.unloadEmbedding()));

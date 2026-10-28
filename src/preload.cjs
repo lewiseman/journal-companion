@@ -13,6 +13,8 @@ contextBridge.exposeInMainWorld('companion', Object.freeze({
   choose: (id) => modelAction('choose', id),
   load: (id) => modelAction('load', id),
   loadSpeech: (id) => modelAction('loadSpeech', id),
+  loadEmbedding: (id) => modelAction('loadEmbedding', id),
+  unloadEmbedding: () => ipcRenderer.invoke('companion:unloadEmbedding'),
   testVision: () => ipcRenderer.invoke('companion:testVision'),
   assignImage: (id) => modelAction('assignImage', id),
   testImage: () => ipcRenderer.invoke('companion:testImage'),

@@ -1,8 +1,10 @@
 const { CompanionError } = require('./model.cjs');
 const CONVERSATION_OPERATION = 'diary.conversation';
-const CONVERSATION_LIMITS = Object.freeze({ inputBytes: 6000, outputBytes: 8000, outputTokens: 768 });
+// A spoken conversation runs long; 10,000 bytes (~2,500 tokens) plus the
+// system prompt and a 768-token reply still fit the model's 4,096 context.
+const CONVERSATION_LIMITS = Object.freeze({ inputBytes: 10000, outputBytes: 8000, outputTokens: 768 });
 function validateConversationInput(raw) {
-  if (typeof raw !== 'string' || Buffer.byteLength(raw) > CONVERSATION_LIMITS.inputBytes) throw new CompanionError('INPUT_LIMIT', 'This conversation exceeds 6,000 UTF-8 bytes. Nothing was truncated.');
+  if (typeof raw !== 'string' || Buffer.byteLength(raw) > CONVERSATION_LIMITS.inputBytes) throw new CompanionError('INPUT_LIMIT', 'This conversation exceeds 10,000 UTF-8 bytes. Nothing was truncated.');
   let input; try { input = JSON.parse(raw); } catch { throw new CompanionError('INVALID_INPUT', 'Invalid conversation.'); }
   // action=open starts the conversation, so it carries no turns at all.
   const opening = input && input.action === 'open';

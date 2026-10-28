@@ -12,7 +12,8 @@ const { REFLECTION_OPERATION, validateReflectionInput, validateReflectionOutput 
 const { NOTE_HELP } = require('./note-help.cjs');
 const { IMAGE_OPERATIONS, validateImageJobInput } = require('./vision.cjs');
 const { BACKGROUND_OPERATION, validateBackgroundInput } = require('./background.cjs');
-const JOB_OPERATIONS = () => [CONVERSATION_OPERATION, 'text', SUMMARY_OPERATION, ...Object.keys(OPERATIONS), PRESENTATION_OPERATION, DIARY_OPERATION, QUESTION_OPERATION, HISTORY_OPERATION, ...Object.keys(NOTE_HELP), ...IMAGE_OPERATIONS, BACKGROUND_OPERATION, REFLECTION_OPERATION];
+const { EMBED_OPERATION, EMBED_LIMITS, validateEmbedInput } = require('./embed.cjs');
+const JOB_OPERATIONS = () => [CONVERSATION_OPERATION, 'text', SUMMARY_OPERATION, ...Object.keys(OPERATIONS), PRESENTATION_OPERATION, DIARY_OPERATION, QUESTION_OPERATION, HISTORY_OPERATION, ...Object.keys(NOTE_HELP), ...IMAGE_OPERATIONS, BACKGROUND_OPERATION, REFLECTION_OPERATION, EMBED_OPERATION];
 const TERMINAL = new Set(['completed', 'failed', 'cancelled', 'interrupted', 'expired']);
 const RETENTION = 24 * 60 * 60 * 1000;
 const TOMBSTONE_RETENTION = 7 * RETENTION;
@@ -52,12 +53,16 @@ class Jobs extends EventEmitter {
     const vision = IMAGE_OPERATIONS.includes(input?.operation);
     if (vision !== image || (vision && !this.vision)) throw new CompanionError('INVALID_INPUT', 'Send image questions through the image route.');
     if (vision) validateImageJobInput(input.prompt, input.operation);
-    const background = input?.operation === BACKGROUND_OPERATION;
+    const background = input?.operation === BACKGROUND_OPERATION, embed = input?.operation === EMBED_OPERATION;
+    if (embed) {
+      if (!this.embedder) throw new CompanionError('NOT_READY', 'Search by meaning is not available on this computer.');
+      validateEmbedInput(input.prompt);
+    }
     if (background) {
       if (!this.background) throw new CompanionError('NOT_READY', 'Note backgrounds are not available on this computer.');
       validateBackgroundInput(input.prompt);
     }
-    if (!input || !/^[a-zA-Z0-9_-]{8,80}$/.test(input.id || '') || !JOB_OPERATIONS().includes(input.operation) || typeof input.prompt !== 'string' || !input.prompt.trim() || Buffer.byteLength(input.prompt) > (input.operation === CONVERSATION_OPERATION ? CONVERSATION_LIMITS.inputBytes : 2000)) throw new CompanionError('INVALID_INPUT', 'Supply a unique request ID and up to 2,000 UTF-8 bytes for text.');
+    if (!input || !/^[a-zA-Z0-9_-]{8,80}$/.test(input.id || '') || !JOB_OPERATIONS().includes(input.operation) || typeof input.prompt !== 'string' || !input.prompt.trim() || Buffer.byteLength(input.prompt) > (input.operation === CONVERSATION_OPERATION ? CONVERSATION_LIMITS.inputBytes : embed ? EMBED_LIMITS.inputBytes : 2000)) throw new CompanionError('INVALID_INPUT', 'Supply a unique request ID and up to 2,000 UTF-8 bytes for text.');
     if (input.operation === CONVERSATION_OPERATION) validateConversationInput(input.prompt);
     if (input.operation === SUMMARY_OPERATION) validateSummaryInput(input.prompt);
     if (Object.hasOwn(OPERATIONS, input.operation)) validateTransformInput(input.prompt, input.operation);
@@ -86,9 +91,10 @@ class Jobs extends EventEmitter {
       }
       if (input.expires !== undefined && input.expires <= this.now()) throw new CompanionError('EXPIRED', 'This request expired. Start a new request explicitly.');
       if (background && this.background.capability().status !== 'ready') throw new CompanionError('NOT_READY', 'Background generation is not ready on the computer.');
-      if (!vision && !background && this.library.capability().status !== 'ready' && !this.runtime.reserved) throw new CompanionError('NOT_READY', 'The writing model is not ready.');
+      if (embed && this.embedder.capability().status !== 'ready') throw new CompanionError('NOT_READY', 'The embedding model is not loaded on the computer.');
+      if (!vision && !background && !embed && this.library.capability().status !== 'ready' && !this.runtime.reserved) throw new CompanionError('NOT_READY', 'The writing model is not ready.');
       if (Object.values(data.jobs).filter((j) => !TERMINAL.has(j.state)).length >= 16 || Object.values(data.jobs).filter((j) => j.device === device && !TERMINAL.has(j.state)).length >= 4 || Object.values(data.jobs).length >= 1000) throw new CompanionError('QUEUE_FULL', 'Wait for or remove previous work.');
-      data.jobs[key] = { id: input.id, device, operation: input.operation, model: vision ? this.vision.model.id : background ? this.background.model.id : this.library.assignment, digest, prompt: input.prompt, state: 'queued', created: this.now(), expires: Math.min(input.expires ?? this.now() + RETENTION, this.now() + RETENTION),
+      data.jobs[key] = { id: input.id, device, operation: input.operation, model: vision ? this.vision.model.id : background ? this.background.model.id : embed ? this.embedder.model.id : this.library.assignment, digest, prompt: input.prompt, state: 'queued', created: this.now(), expires: Math.min(input.expires ?? this.now() + RETENTION, this.now() + RETENTION),
         ...(stored ? { image: { type: stored.type, width: stored.width, height: stored.height, bytes: stored.bytes } } : {}) };
     });
     this.refresh(); setImmediate(() => this.pump());
@@ -148,7 +154,8 @@ class Jobs extends EventEmitter {
         this.emit('change');
         let result;
         try {
-          result = job.operation === BACKGROUND_OPERATION ? await this.generateBackground(job, key)
+          result = job.operation === EMBED_OPERATION ? (job.model !== this.embedder?.model.id ? { ok: false, error: { code: 'MODEL_CHANGED' } } : await this.embedder.run(job.prompt))
+            : job.operation === BACKGROUND_OPERATION ? await this.generateBackground(job, key)
             : IMAGE_OPERATIONS.includes(job.operation) ? await this.vision.run(JSON.parse(job.prompt), await this.vision.load(job.device, job.id, job.image?.type), { job: true, operation: job.operation })
             : job.model !== this.library.assignment ? { ok: false, error: { code: 'ASSIGNMENT_CHANGED' } } : await this.runtime.generate(job.prompt, { job: true, operation: job.operation });
           if (result.ok && job.operation === CONVERSATION_OPERATION) result.text = validateConversationOutput(result.text, job.prompt);

@@ -8,6 +8,7 @@ const additionalWritingModels = require('./writing-models.cjs');
 const speechModels = require('./speech-models.cjs');
 const visionModels = require('./vision-models.cjs');
 const ocrModels = require('./ocr-models.cjs');
+const embeddingModels = require('./embedding-models.cjs');
 
 // Pinned publisher/converter repositories + LFS SHA-256 (see docs/MODELS.md).
 const MODELS = Object.freeze([{
@@ -100,7 +101,7 @@ const MODELS = Object.freeze([{
   sha256: '4ab9818c9b3428eca96834c51fe294885608480991463f55bd9be53c822567c3',
   revision: 'f00927e80a399ecb0bcacca868131d5e9d4e77aa',
   license: 'CreativeML Open RAIL++-M',
-}, ...speechModels, ...visionModels, ...ocrModels].map((model) => Object.freeze({ capability: 'text', collection: 'Lightweight', engine: 'llamacpp-completion', quantization: 'Q4_K_M', origin: 'Qwen / Hugging Face', ...model })));
+}, ...speechModels, ...visionModels, ...ocrModels, ...embeddingModels].map((model) => Object.freeze({ capability: 'text', collection: 'Lightweight', engine: 'llamacpp-completion', quantization: 'Q4_K_M', origin: 'Qwen / Hugging Face', ...model })));
 const MODEL = MODELS[0];
 
 class CompanionError extends Error {

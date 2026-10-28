@@ -146,7 +146,7 @@ class DeviceService extends EventEmitter {
       return { state: p.state, id: p.id };
     }
     const id = this.authenticate(req, raw);
-    if (req.method === 'GET' && route === '/v1/status') return { v: VERSION, recovery: 1, id: this.identity.id, name: os.hostname().slice(0, 48), transport: 'connected', capabilities: [this.library.capability(), ...(this.jobs.vision ? [this.jobs.vision.capability()] : []), ...(this.jobs.background ? [this.jobs.background.capability()] : []), ...(this.voice ? [this.voice.speech.capability(), { id: 'speech', implemented: false, status: 'unavailable', reason: 'Read replies on screen. Speech synthesis is not enabled.' }] : [])] };
+    if (req.method === 'GET' && route === '/v1/status') return { v: VERSION, recovery: 1, id: this.identity.id, name: os.hostname().slice(0, 48), transport: 'connected', capabilities: [this.library.capability(), ...(this.jobs.vision ? [this.jobs.vision.capability()] : []), ...(this.jobs.background ? [this.jobs.background.capability()] : []), ...(this.jobs.embedder ? [this.jobs.embedder.capability()] : []), ...(this.voice ? [this.voice.speech.capability(), { id: 'speech', implemented: false, status: 'unavailable', reason: 'Read replies on screen. Speech synthesis is not enabled.' }] : [])] };
     if (req.method === 'POST' && route === '/v1/disconnect') { this.seen.delete(id); this.emit('change'); return { ok: true }; }
     if (req.method === 'POST' && route === '/v1/forget') return this.revoke(id);
     const voiceMatch = /^\/v1\/voice\/([a-zA-Z0-9_-]{8,80})(\/cancel|\/ack)?$/.exec(route);

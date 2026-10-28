@@ -14,7 +14,7 @@ async function directory(t) {
 }
 
 test('the offline catalog has distinct immutable publisher artifacts and rejects arbitrary IDs', () => {
-  assert.equal(MODELS.length, 41);
+  assert.equal(MODELS.length, 43);
   assert.equal(new Set(MODELS.map((model) => model.id)).size, MODELS.length);
   assert.equal(MODELS.filter((model) => model.capability === 'text').length, 20);
   assert.equal(MODELS.filter((model) => model.capability === 'image').length, 2);
@@ -22,7 +22,8 @@ test('the offline catalog has distinct immutable publisher artifacts and rejects
   assert.equal(MODELS.filter((model) => model.capability === 'speech').length, 7);
   assert.equal(MODELS.filter((model) => model.capability === 'vision').length, 1);
   assert.equal(MODELS.filter((model) => model.capability === 'ocr').length, 1);
-  const engines = { ocr: ['ggml-ocr'], vision: ['llamacpp-completion'], text: ['llamacpp-completion'], image: ['sdcpp-generation'], speech: ['tts-ggml'],
+  assert.equal(MODELS.filter((model) => model.capability === 'embedding').length, 2);
+  const engines = { ocr: ['ggml-ocr'], vision: ['llamacpp-completion'], text: ['llamacpp-completion'], image: ['sdcpp-generation'], speech: ['tts-ggml'], embedding: ['llamacpp-embedding'],
     transcription: ['whispercpp-transcription', 'parakeet-transcription', 'moss-transcribe'] };
   for (const model of MODELS) {
     assert.equal(getModel(model.id), model);
