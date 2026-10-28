@@ -75,7 +75,7 @@ class Runtime extends EventEmitter {
       await fs.mkdir(this.directory, { recursive: true, mode: 0o700 });
       const config = path.join(this.directory, 'runtime.json');
       await fs.writeFile(config, JSON.stringify({
-        plugins: ['@qvac/sdk/llamacpp-completion/plugin', '@qvac/sdk/whispercpp-transcription/plugin', '@qvac/sdk/ggml-ocr/plugin'], loggerConsoleOutput: false, loggerLevel: 'error',
+        plugins: ['@qvac/sdk/llamacpp-completion/plugin', '@qvac/sdk/whispercpp-transcription/plugin', '@qvac/sdk/ggml-ocr/plugin', '@qvac/sdk/sdcpp-generation/plugin'], loggerConsoleOutput: false, loggerLevel: 'error',
         cacheDirectory: path.join(this.directory, 'runtime-cache'), requireHttpChecksum: true, requireSecureTransport: true,
       }), { mode: 0o600 });
       process.env.QVAC_CONFIG_PATH = config;
@@ -260,6 +260,8 @@ class Runtime extends EventEmitter {
     }, { job });
   }
   async cancelGeneration() {
+    // Work that cannot be cancelled by request ID (image generation) installs its own stop.
+    if (this.stopActive) { this.cancelRequested = true; return this.stopActive(); }
     if (this.activeRun?.requestId && this.sdk) {
       this.cancelRequested = true;
       try { await bounded(this.sdk.cancel({ requestId: this.activeRun.requestId }), 5000); } catch { await this.closeSdk(); }

@@ -14,6 +14,8 @@ contextBridge.exposeInMainWorld('companion', Object.freeze({
   load: (id) => modelAction('load', id),
   loadSpeech: (id) => modelAction('loadSpeech', id),
   testVision: () => ipcRenderer.invoke('companion:testVision'),
+  assignImage: (id) => modelAction('assignImage', id),
+  testImage: () => ipcRenderer.invoke('companion:testImage'),
   unload: () => ipcRenderer.invoke('companion:unload'),
   generate: (prompt) => ipcRenderer.invoke('companion:generate', prompt),
   install: (id) => modelAction('install', id),

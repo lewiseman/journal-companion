@@ -2,7 +2,8 @@
   "plugins": [
     "@qvac/sdk/llamacpp-completion/plugin",
     "@qvac/sdk/whispercpp-transcription/plugin",
-    "@qvac/sdk/ggml-ocr/plugin"
+    "@qvac/sdk/ggml-ocr/plugin",
+    "@qvac/sdk/sdcpp-generation/plugin"
   ],
   "loggerConsoleOutput": false,
   "loggerLevel": "error",

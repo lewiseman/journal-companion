@@ -297,3 +297,18 @@ test('I03: image questions use a separate signed route with a larger body limit 
   const tooLarge = await auth(service, p, 'POST', '/v1/image-jobs', { ...body, image: 'A'.repeat(4.3 * 1024 * 1024) }).catch((e) => ({ error: e }));
   assert.ok(tooLarge.error || tooLarge.value.error.code === 'INVALID_INPUT');
 });
+
+test('I06: a generated background is collected over a signed result route by its owning device only', async (t) => {
+  const { service, jobs } = await fixture(t);
+  const { BACKGROUND_OPERATION } = require('../src/background.cjs');
+  const { p } = await enroll(service);
+  const { p: other } = await enroll(service);
+  const big = 'A'.repeat(900000);
+  jobs.backgroundResult = async (device, id) => { if (device !== p.id || id !== 'background-route') throw new (require('../src/model.cjs').CompanionError)('NOT_FOUND', 'No generated background.'); return { id, image: big, sha256: 'x'.repeat(64) }; };
+  jobs.background = { capability: () => ({ id: 'image', status: 'ready', operations: [BACKGROUND_OPERATION], backgroundContract: 1 }), sweep: async () => {} };
+  assert.equal((await auth(service, p, 'GET', '/v1/status')).value.capabilities.find((c) => c.id === 'image').backgroundContract, 1);
+  const collected = await auth(service, p, 'GET', '/v1/image-jobs/background-route/result');
+  assert.equal(collected.status, 200); assert.equal(collected.value.image.length, big.length);
+  assert.equal((await auth(service, other, 'GET', '/v1/image-jobs/background-route/result')).value.error.code, 'NOT_FOUND');
+  assert.equal((await request(service, 'GET', '/v1/image-jobs/background-route/result')).status, 401);
+});

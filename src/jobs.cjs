@@ -10,7 +10,8 @@ const { QUESTION_OPERATION, validateQuestionInput, validateQuestionOutput } = re
 const { HISTORY_OPERATION, validateHistoryInput, validateHistoryOutput } = require('./history.cjs');
 const { NOTE_HELP } = require('./note-help.cjs');
 const { IMAGE_OPERATIONS, validateImageJobInput } = require('./vision.cjs');
-const JOB_OPERATIONS = () => [CONVERSATION_OPERATION, 'text', SUMMARY_OPERATION, ...Object.keys(OPERATIONS), PRESENTATION_OPERATION, DIARY_OPERATION, QUESTION_OPERATION, HISTORY_OPERATION, ...Object.keys(NOTE_HELP), ...IMAGE_OPERATIONS];
+const { BACKGROUND_OPERATION, validateBackgroundInput } = require('./background.cjs');
+const JOB_OPERATIONS = () => [CONVERSATION_OPERATION, 'text', SUMMARY_OPERATION, ...Object.keys(OPERATIONS), PRESENTATION_OPERATION, DIARY_OPERATION, QUESTION_OPERATION, HISTORY_OPERATION, ...Object.keys(NOTE_HELP), ...IMAGE_OPERATIONS, BACKGROUND_OPERATION];
 const TERMINAL = new Set(['completed', 'failed', 'cancelled', 'interrupted', 'expired']);
 const RETENTION = 24 * 60 * 60 * 1000;
 const TOMBSTONE_RETENTION = 7 * RETENTION;
@@ -42,6 +43,7 @@ class Jobs extends EventEmitter {
   refresh() {
     this.runtime.reserved = Object.values(this.vault.value.jobs).some((j) => !TERMINAL.has(j.state)); this.emit('change');
     this.vision?.sweep(this.vault.value.jobs).catch(() => {});
+    this.background?.sweep(this.vault.value.jobs, this.now()).catch(() => {});
   }
   key(device, id) { return `${device}:${id}`; }
   // Image jobs arrive only through the larger image route, with base64 bytes.
@@ -49,6 +51,11 @@ class Jobs extends EventEmitter {
     const vision = IMAGE_OPERATIONS.includes(input?.operation);
     if (vision !== image || (vision && !this.vision)) throw new CompanionError('INVALID_INPUT', 'Send image questions through the image route.');
     if (vision) validateImageJobInput(input.prompt, input.operation);
+    const background = input?.operation === BACKGROUND_OPERATION;
+    if (background) {
+      if (!this.background) throw new CompanionError('NOT_READY', 'Note backgrounds are not available on this computer.');
+      validateBackgroundInput(input.prompt);
+    }
     if (!input || !/^[a-zA-Z0-9_-]{8,80}$/.test(input.id || '') || !JOB_OPERATIONS().includes(input.operation) || typeof input.prompt !== 'string' || !input.prompt.trim() || Buffer.byteLength(input.prompt) > (input.operation === CONVERSATION_OPERATION ? CONVERSATION_LIMITS.inputBytes : 2000)) throw new CompanionError('INVALID_INPUT', 'Supply a unique request ID and up to 2,000 UTF-8 bytes for text.');
     if (input.operation === CONVERSATION_OPERATION) validateConversationInput(input.prompt);
     if (input.operation === SUMMARY_OPERATION) validateSummaryInput(input.prompt);
@@ -76,9 +83,10 @@ class Jobs extends EventEmitter {
         return;
       }
       if (input.expires !== undefined && input.expires <= this.now()) throw new CompanionError('EXPIRED', 'This request expired. Start a new request explicitly.');
-      if (!vision && this.library.capability().status !== 'ready' && !this.runtime.reserved) throw new CompanionError('NOT_READY', 'The writing model is not ready.');
+      if (background && this.background.capability().status !== 'ready') throw new CompanionError('NOT_READY', 'Background generation is not ready on the computer.');
+      if (!vision && !background && this.library.capability().status !== 'ready' && !this.runtime.reserved) throw new CompanionError('NOT_READY', 'The writing model is not ready.');
       if (Object.values(data.jobs).filter((j) => !TERMINAL.has(j.state)).length >= 16 || Object.values(data.jobs).filter((j) => j.device === device && !TERMINAL.has(j.state)).length >= 4 || Object.values(data.jobs).length >= 1000) throw new CompanionError('QUEUE_FULL', 'Wait for or remove previous work.');
-      data.jobs[key] = { id: input.id, device, operation: input.operation, model: vision ? this.vision.model.id : this.library.assignment, digest, prompt: input.prompt, state: 'queued', created: this.now(), expires: Math.min(input.expires ?? this.now() + RETENTION, this.now() + RETENTION),
+      data.jobs[key] = { id: input.id, device, operation: input.operation, model: vision ? this.vision.model.id : background ? this.background.model.id : this.library.assignment, digest, prompt: input.prompt, state: 'queued', created: this.now(), expires: Math.min(input.expires ?? this.now() + RETENTION, this.now() + RETENTION),
         ...(stored ? { image: { type: stored.type, width: stored.width, height: stored.height, bytes: stored.bytes } } : {}) };
     });
     this.refresh(); setImmediate(() => this.pump());
@@ -138,7 +146,8 @@ class Jobs extends EventEmitter {
         this.emit('change');
         let result;
         try {
-          result = IMAGE_OPERATIONS.includes(job.operation) ? await this.vision.run(JSON.parse(job.prompt), await this.vision.load(job.device, job.id, job.image?.type), { job: true, operation: job.operation })
+          result = job.operation === BACKGROUND_OPERATION ? await this.generateBackground(job, key)
+            : IMAGE_OPERATIONS.includes(job.operation) ? await this.vision.run(JSON.parse(job.prompt), await this.vision.load(job.device, job.id, job.image?.type), { job: true, operation: job.operation })
             : job.model !== this.library.assignment ? { ok: false, error: { code: 'ASSIGNMENT_CHANGED' } } : await this.runtime.generate(job.prompt, { job: true, operation: job.operation });
           if (result.ok && job.operation === CONVERSATION_OPERATION) result.text = validateConversationOutput(result.text, job.prompt);
           if (result.ok && job.operation === SUMMARY_OPERATION) result.text = validateSummaryOutput(result.text);
@@ -160,6 +169,25 @@ class Jobs extends EventEmitter {
         this.active = null; this.refresh();
       }
     } finally { this.active = null; this.pumping = false; this.refresh(); }
+  }
+  async generateBackground(job, key) {
+    if (job.model !== this.background.model?.id) return { ok: false, error: { code: 'ASSIGNMENT_CHANGED' } };
+    let last = 0;
+    const result = await this.background.generate(JSON.parse(job.prompt), { job: true, onProgress: (step, total) => {
+      // Progress is advisory; a few durable updates per job are enough.
+      if (this.now() - last < 2000 && step !== total) return;
+      last = this.now();
+      this.vault.change((data) => { if (data.jobs[key]?.state === 'running') data.jobs[key].progress = { step, total }; }).then(() => this.emit('change'), () => {});
+    } });
+    if (!result.ok) return result;
+    const sha256 = await this.background.store(job.device, job.id, result.bytes);
+    return { ok: true, text: JSON.stringify({ width: result.width, height: result.height, seed: result.seed, bytes: result.bytes.length, sha256, model: result.model }) };
+  }
+  /** The generated PNG of a completed, unacknowledged background job. */
+  async backgroundResult(device, id) {
+    const job = this.get(device, id);
+    if (job.operation !== BACKGROUND_OPERATION || job.state !== 'completed' || job.acknowledged || !this.background) throw new CompanionError('NOT_FOUND', 'No generated background is waiting for this task.');
+    return { id, image: await this.background.result(device, id), sha256: JSON.parse(job.text).sha256 };
   }
   async shutdown() {
     this.stopped = true; clearInterval(this.timer);
