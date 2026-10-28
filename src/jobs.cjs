@@ -1,3 +1,4 @@
+const { CONVERSATION_OPERATION, CONVERSATION_LIMITS, validateConversationInput, validateConversationOutput } = require('./conversation.cjs');
 const { createHash } = require('node:crypto');
 const { EventEmitter } = require('node:events');
 const { CompanionError } = require('./model.cjs');
@@ -7,7 +8,7 @@ const { PRESENTATION_OPERATION, validatePresentationInput, validatePresentationO
 const { DIARY_OPERATION, validateDiaryInput, validateDiaryOutput } = require('./diary.cjs');
 const { QUESTION_OPERATION, validateQuestionInput, validateQuestionOutput } = require('./question.cjs');
 const { HISTORY_OPERATION, validateHistoryInput, validateHistoryOutput } = require('./history.cjs');
-const JOB_OPERATIONS = () => ['text', SUMMARY_OPERATION, ...Object.keys(OPERATIONS), PRESENTATION_OPERATION, DIARY_OPERATION, QUESTION_OPERATION, HISTORY_OPERATION];
+const JOB_OPERATIONS = () => [CONVERSATION_OPERATION, 'text', SUMMARY_OPERATION, ...Object.keys(OPERATIONS), PRESENTATION_OPERATION, DIARY_OPERATION, QUESTION_OPERATION, HISTORY_OPERATION];
 const TERMINAL = new Set(['completed', 'failed', 'cancelled', 'interrupted', 'expired']);
 const RETENTION = 24 * 60 * 60 * 1000;
 const TOMBSTONE_RETENTION = 7 * RETENTION;
@@ -39,7 +40,8 @@ class Jobs extends EventEmitter {
   refresh() { this.runtime.reserved = Object.values(this.vault.value.jobs).some((j) => !TERMINAL.has(j.state)); this.emit('change'); }
   key(device, id) { return `${device}:${id}`; }
   async submit(device, input) {
-    if (!input || !/^[a-zA-Z0-9_-]{8,80}$/.test(input.id || '') || !JOB_OPERATIONS().includes(input.operation) || typeof input.prompt !== 'string' || !input.prompt.trim() || Buffer.byteLength(input.prompt) > 2000) throw new CompanionError('INVALID_INPUT', 'Supply a unique request ID and up to 2,000 UTF-8 bytes for text.');
+    if (!input || !/^[a-zA-Z0-9_-]{8,80}$/.test(input.id || '') || !JOB_OPERATIONS().includes(input.operation) || typeof input.prompt !== 'string' || !input.prompt.trim() || Buffer.byteLength(input.prompt) > (input.operation === CONVERSATION_OPERATION ? CONVERSATION_LIMITS.inputBytes : 2000)) throw new CompanionError('INVALID_INPUT', 'Supply a unique request ID and up to 2,000 UTF-8 bytes for text.');
+    if (input.operation === CONVERSATION_OPERATION) validateConversationInput(input.prompt);
     if (input.operation === SUMMARY_OPERATION) validateSummaryInput(input.prompt);
     if (Object.hasOwn(OPERATIONS, input.operation)) validateTransformInput(input.prompt, input.operation);
     if (input.operation === PRESENTATION_OPERATION) validatePresentationInput(input.prompt);
@@ -105,10 +107,11 @@ class Jobs extends EventEmitter {
     }); this.refresh();
   }
   async pump() {
-    if (this.pumping || this.stopped) return;
+    if (this.pumping || this.stopped || this.runtime.busy || this.runtime.audioReserved || this.paused?.()) return;
     this.pumping = true;
     try {
       while (!this.stopped) {
+        if (this.runtime.audioReserved) break;
         const job = Object.values(this.vault.value.jobs).find((j) => j.state === 'queued'); if (!job) break;
         const key = this.key(job.device, job.id); this.active = key;
         await this.vault.change((data) => { this.prune(data); if (data.jobs[key]?.state === 'queued') { data.jobs[key].state = 'running'; data.jobs[key].started = this.now(); } });
@@ -117,6 +120,7 @@ class Jobs extends EventEmitter {
         let result;
         try {
           result = job.model !== this.library.assignment ? { ok: false, error: { code: 'ASSIGNMENT_CHANGED' } } : await this.runtime.generate(job.prompt, { job: true, operation: job.operation });
+          if (result.ok && job.operation === CONVERSATION_OPERATION) result.text = validateConversationOutput(result.text, job.prompt);
           if (result.ok && job.operation === SUMMARY_OPERATION) result.text = validateSummaryOutput(result.text);
           if (result.ok && Object.hasOwn(OPERATIONS, job.operation)) result.text = validateTransformOutput(result.text);
           if (result.ok && job.operation === PRESENTATION_OPERATION) result.text = validatePresentationOutput(result.text);

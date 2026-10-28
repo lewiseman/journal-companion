@@ -1,0 +1,43 @@
+{
+  "checked": "2026-10-28T00:07:02.238Z",
+  "host": "darwin arm64",
+  "sdk": "0.22.0",
+  "combinedModels": [
+    "llama-3.1-8b-instruct-q4_k_m@bf5b95e96dac0462e2a09145ec66cae9a3f12067",
+    "whisper-large-v3-turbo@5359861c739e955e79d9a303bcbc70fb988958b1",
+    "silero-vad-5.1.2@9ffd54a1e1ee413ddf265af9913beaf518d1639b"
+  ],
+  "completedConsecutiveRealSpeechSessions": 4,
+  "speechSessions": [
+    {
+      "state": "completed",
+      "audioSeconds": 12,
+      "firstTextMs": 4311,
+      "finishedMs": 12579
+    },
+    {
+      "state": "completed",
+      "audioSeconds": 12,
+      "firstTextMs": 4239,
+      "finishedMs": 12572
+    },
+    {
+      "state": "completed",
+      "audioSeconds": 12,
+      "firstTextMs": 4246,
+      "finishedMs": 12780
+    },
+    {
+      "state": "completed",
+      "audioSeconds": 12,
+      "firstTextMs": 4226,
+      "finishedMs": 12787
+    }
+  ],
+  "readinessAfterRepeatedSessionsAndIdle": {
+    "writing": "ready",
+    "speech": "ready"
+  },
+  "fixture": "Public JFK speech, not user audio",
+  "fix": "Suspend writing health probes during speech and invalidate probes from previous activity generations."
+}

@@ -46,12 +46,12 @@
       </div>
     </section>
     <section class="connection-panel">
-      <h2>Models &amp; capabilities</h2><p id="library-state">Checking installed artifacts…</p>
-      <p>Writing works on desktop and paired phones. Speech-to-text, text-to-speech and image models can be downloaded now for future features. Downloading them keeps your writing model active. Transcription, read-aloud, image generation, image input, OCR and embeddings are not yet enabled.</p>
+      <h2>Voice from Android</h2><p id="speech-state" role="status"></p><label for="speech-model-select">Speech recognition model</label><select id="speech-model-select" aria-describedby="speech-state"></select><button id="load-speech" class="secondary">Load speech + Silero VAD</button><p>Download a multilingual Whisper model and Silero VAD above, then load speech. Whisper Large v3 Turbo is recommended. The phone records 16 kHz mono audio; speech appears after short pauses. Review every transcript. Read diary replies on screen; speech synthesis is unavailable.</p></section><section class="connection-panel"><h2>Models &amp; capabilities</h2><p id="library-state">Checking installed artifacts…</p>
+      <p>Writing and Whisper transcription work on paired Android phones. Other speech and image models remain download-only. Downloading preserves the active writing model. Read-aloud, image generation, image input, OCR and embeddings are not enabled.</p>
       <button id="install" class="secondary">Download selected without loading</button> <button id="cancel-download" class="secondary">Cancel download</button>
       <button id="remove" class="secondary">Remove active model</button> <button id="assign" class="secondary">Assign writing model</button>
       <button id="catalog" class="text-button">Selected model details &amp; license ↗</button>
-      <p>Choose a model above to download or switch. One model runs at a time. Retry starts a new download; incomplete files cannot load. External files are never removed.</p>
+      <p>Choose a model above to download or switch. Writing and speech can remain loaded together; available memory determines fit. Retry starts a new download; incomplete files cannot load. External files are never removed.</p>
     </section>
     <section class="connection-panel">
       <h2>Connect a phone</h2><p>Keep both devices on the same Wi-Fi. Internet is unnecessary after setup. Scan this Mac’s QR in Journal Settings, compare the phone verification code below, then approve.</p>

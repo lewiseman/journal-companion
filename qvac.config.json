@@ -1,5 +1,9 @@
 {
-  "plugins": ["@qvac/sdk/llamacpp-completion/plugin"],
+  "plugins": [
+    "@qvac/sdk/llamacpp-completion/plugin",
+    "@qvac/sdk/whispercpp-transcription/plugin"
+  ],
   "loggerConsoleOutput": false,
-  "loggerLevel": "error"
+  "loggerLevel": "error",
+  "includeAudioDecoder": false
 }

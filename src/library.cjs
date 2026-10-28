@@ -1,3 +1,4 @@
+const { CONVERSATION_OPERATION, CONVERSATION_LIMITS, validateConversationInput, validateConversationOutput } = require('./conversation.cjs');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { EventEmitter } = require('node:events');
@@ -76,9 +77,9 @@ class Library extends EventEmitter {
     const r = this.runtime;
     const assigned = this.assignment === (r.model || MODEL).id;
     const status = !assigned ? 'unassigned' : r.unsupported ? 'incompatible' : r.state.status === 'failed' ? 'failed'
-      : r.busy ? (r.state.status === 'working' ? 'busy' : 'loading') : r.modelId ? 'ready' : !this.installed ? 'needs_download' : 'unloaded';
+      : r.audioReserved ? 'busy' : r.busy ? (r.state.status === 'working' ? 'busy' : 'loading') : r.modelId ? 'ready' : !this.installed ? 'needs_download' : 'unloaded';
     return { id: 'text', implemented: true, model: this.assignment, status, reason: !this.assignment ? 'Assign the installed writing model.' : r.state.detail,
-      operations: ['text', SUMMARY_OPERATION, ...Object.keys(OPERATIONS), PRESENTATION_OPERATION, DIARY_OPERATION, QUESTION_OPERATION, HISTORY_OPERATION], summaryLimits: SUMMARY_LIMITS, transformLimits: TRANSFORM_LIMITS, presentationContract: 1, presentationLimits: PRESENTATION_LIMITS, diaryContract: 1, diaryLimits: DIARY_LIMITS, questionContract: 1, questionLimits: QUESTION_LIMITS, historyContract: 1, historyLimits: HISTORY_LIMITS };
+      operations: [CONVERSATION_OPERATION, 'text', SUMMARY_OPERATION, ...Object.keys(OPERATIONS), PRESENTATION_OPERATION, DIARY_OPERATION, QUESTION_OPERATION, HISTORY_OPERATION], summaryLimits: SUMMARY_LIMITS, transformLimits: TRANSFORM_LIMITS, presentationContract: 1, presentationLimits: PRESENTATION_LIMITS, diaryContract: 1, diaryLimits: DIARY_LIMITS, questionContract: 1, questionLimits: QUESTION_LIMITS, historyContract: 1, historyLimits: HISTORY_LIMITS };
   }
   async assign(id) {
     if (this.runtime.busy || this.runtime.reserved) throw new CompanionError('BUSY', 'Wait for accepted work to finish.');

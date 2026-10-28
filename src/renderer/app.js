@@ -3,6 +3,7 @@ let state;
 let requestPending = false;
 let pairingExpires = 0;
 let selectedModelId;
+let selectedSpeechModelId;
 // Download-only capabilities and the future feature each one is kept for.
 const futureUse = { image: 'image generation', transcription: 'speech-to-text', speech: 'read-aloud' };
 const labels = { unavailable: ['AI unavailable', 'SETUP NEEDED'], loading: ['Getting things ready', 'LOADING'], ready: ['Your companion is ready', 'READY'], working: ['A thought is taking shape', 'WORKING'], failed: ['AI needs attention', 'FAILED'] };
@@ -26,6 +27,21 @@ function render(next) {
   $('load').disabled = busy || unsupported;
   $('unload').hidden = state.status !== 'ready'; $('unload').disabled = busy;
   $('clear').disabled = state.status === 'working';
+  $('speech-state').textContent = state.speech ? `${state.speech.status} · ${state.speech.reason}` : 'Speech unavailable';
+  const speechModels = (state.library?.models || []).filter((m) => m.engine === 'whispercpp-transcription' && !m.filename.includes('silero') && !m.filename.includes('.en-'));
+  if (!speechModels.some((m) => m.id === selectedSpeechModelId)) selectedSpeechModelId = state.speech?.model || speechModels[0]?.id;
+  const speechPicker = $('speech-model-select');
+  const speechCatalog = JSON.stringify(speechModels.map(({ id, installed }) => ({ id, installed })));
+  if (speechPicker.dataset.catalog !== speechCatalog) {
+    speechPicker.replaceChildren(...speechModels.map((m) => { const option = document.createElement('option'); option.value = m.id; option.textContent = `${m.name}${m.installed ? ' · Downloaded' : ' · Needs download'}`; return option; }));
+    speechPicker.dataset.catalog = speechCatalog;
+  }
+  speechPicker.value = selectedSpeechModelId;
+  speechPicker.disabled = ['loading', 'busy'].includes(state.speech?.status);
+  const selectedSpeech = speechModels.find((m) => m.id === selectedSpeechModelId);
+  const vadInstalled = state.library?.models.some((m) => m.filename === 'ggml-silero-v5.1.2.bin' && m.installed);
+  $('load-speech').disabled = !selectedSpeech?.installed || !vadInstalled || ['loading', 'busy'].includes(state.speech?.status) || state.status === 'working';
+  if (!selectedSpeech?.installed || !vadInstalled) $('speech-state').textContent += ' · Download the selected Whisper model and Silero VAD first.';
   renderConnections();
 }
 function renderModels(disabled, downloading, unsupported) {
@@ -37,7 +53,7 @@ function renderModels(disabled, downloading, unsupported) {
   if (picker.dataset.catalog !== catalog) {
     picker.replaceChildren(...[
       ['Popular', 'Writing · popular choices'], ['New', 'Writing · newer & interesting'],
-      ['Lightweight', 'Writing · lightweight'], ['transcription', 'Speech to text · download only'],
+      ['Lightweight', 'Writing · lightweight'], ['transcription', 'Speech to text · Whisper available'],
       ['speech', 'Text to speech · download only'], ['image', 'Image generation · download only'],
     ].map(([collection, label]) => {
       const group = document.createElement('optgroup'); group.label = label;
@@ -58,7 +74,7 @@ function renderModels(disabled, downloading, unsupported) {
   $('model-name').textContent = model.name;
   $('model-meta').textContent = `${model.quantization} · ${size} download${files} · ${model.license}`;
   $('model-description').textContent = model.description;
-  $('model-guidance').textContent = `${model.tier} · ${model.memoryGB} GB+ system memory suggested. ${image ? `Download weights now; ${future} will be added later.${model.source === 'registry' ? ' Downloads from peers in the QVAC model registry.' : ''}` : model.fitHint || 'Speed depends on your Mac.'}`;
+  $('model-guidance').textContent = `${model.tier} · ${model.memoryGB} GB+ system memory suggested. ${image ? `${model.engine === 'whispercpp-transcription' ? 'Whisper and Silero VAD enable Android voice capture.' : `Download weights now; ${future} will be added later.`}${model.source === 'registry' ? ' Downloads from peers in the QVAC model registry.' : ''}` : model.fitHint || 'Speed depends on your Mac.'}`;
   $('download').textContent = model.installed ? 'Download a fresh copy ↓' : `${image ? 'Download' : 'Download & use'} · ${size} ↓`;
   $('use-model').hidden = !model.installed || image;
   $('use-model').textContent = model.loaded ? 'Currently loaded' : 'Use downloaded model';
@@ -150,3 +166,6 @@ $('pair').onclick = async () => {
   if (result?.ok) { pairingExpires = result.expires; $('pairing').hidden = false; $('pair-code').value = result.code; $('pair-qr').src = result.qr; $('pair-expiry').textContent = `Expires ${new Date(result.expires).toLocaleTimeString()}. Keep this code private.`; }
 };
 setInterval(() => window.companion.state().then(render), 5000);
+
+$('speech-model-select').addEventListener('change', (event) => { selectedSpeechModelId = event.target.value; render(state); });
+$('load-speech').addEventListener('click', () => act(() => window.companion.loadSpeech(selectedSpeechModelId)));

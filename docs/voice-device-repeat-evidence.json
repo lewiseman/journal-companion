@@ -1,0 +1,21 @@
+{
+  "checked": "2026-10-28",
+  "device": "Samsung SM-S928B",
+  "actualAndroidMicrophone": true,
+  "runtime": "QVAC SDK 0.22.0",
+  "speechModel": "Whisper Large v3 Turbo + Silero VAD 5.1.2",
+  "transport": "Existing pinned TLS / Ed25519 trusted LAN connection",
+  "sessions": [
+    { "number": 1, "deliveredBytes": 34560, "fileBytes": 34560, "accepted": true, "review": true },
+    { "number": 2, "deliveredBytes": 34560, "fileBytes": 34560, "accepted": true, "review": true, "immediateRetry": true },
+    { "number": 3, "deliveredBytes": 34560, "fileBytes": 34560, "accepted": true, "review": true, "idleBeforeSeconds": 5 }
+  ],
+  "idleAfterSeconds": 12,
+  "writingReadyAfterIdle": true,
+  "speechReadyAfterIdle": true,
+  "transcriptInspected": false,
+  "journalSavePerformed": false,
+  "languageAccuracyMeasured": false,
+  "fix": "Drain native stopped event before cancelling PCM stream; stopped controller cleanup cannot stop a later recording",
+  "test": "integration_test/voice_repeat_device_test.dart --no-uninstall --dart-define=RUN_REAL_VOICE_REPEAT=true"
+}

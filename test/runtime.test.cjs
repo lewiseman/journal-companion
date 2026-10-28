@@ -146,9 +146,10 @@ test('all writing operations separate intent from source and refuse malformed/tr
   const { OPERATIONS } = require('../src/transform.cjs');
   const runtime = new Runtime(await temporary(t), { checkHost: () => null });
   let captured, output = 'I will attend on Friday.', reason;
-  runtime.sdk = { completion: (params) => { captured = params; return {
+  const syntheticSdk = { completion: (params) => { captured = params; return {
     tokenStream: (async function* () { yield output; })(), text: Promise.resolve(output), final: Promise.resolve({ stopReason: reason }),
   }; }, close: async () => {}, unloadModel: async () => {} };
+  runtime.sdk = syntheticSdk;
   runtime.modelId = 'model'; runtime.state.status = 'ready';
   const prompt = JSON.stringify({ text: 'i will attend friday.', intent: 'Keep my voice' });
   for (const operation of Object.keys(OPERATIONS)) {
@@ -160,9 +161,30 @@ test('all writing operations separate intent from source and refuse malformed/tr
   for (output of ['   ', '<script>bad</script>', '\u0000bad', '🦉'.repeat(1025), '{"text":"unexpected envelope"}']) {
     assert.equal((await runtime.generate(prompt, { operation: 'rewrite-note', job: true })).error.code, 'INVALID_OUTPUT');
     // A streaming size limit terminates the runtime; restore the synthetic model for the next case.
-    runtime.modelId = 'model'; runtime.state.status = 'ready';
+    runtime.sdk = syntheticSdk; runtime.modelId = 'model'; runtime.state.status = 'ready';
   }
   output = 'A partial replacement'; reason = 'length';
   assert.equal((await runtime.generate(prompt, { operation: 'expand-note', job: true })).error.code, 'OUTPUT_LIMIT');
+  await runtime.shutdown();
+});
+
+test('audio suspends writing health checks and a stale failure cannot close a later session', async (t) => {
+  const runtime = new Runtime(await temporary(t), { checkHost: () => null });
+  let rejectProbe, probes = 0, closed = 0;
+  runtime.sdk = { getLoadedModelInfo: () => { probes++; return new Promise((_, reject) => { rejectProbe = reject; }); }, close: async () => {closed++;}, unloadModel: async () => {} };
+  runtime.modelId = 'writing-model'; runtime.state.status = 'ready';
+  const pending = runtime.checkHealth();
+  runtime.reserveAudio(); await runtime.checkHealth(); assert.equal(probes, 1);
+  runtime.releaseAudio();
+  rejectProbe(Object.assign(new Error('synthetic delayed probe failure'), {code:'RPC_TIMEOUT'}));
+  await pending;
+  assert.equal(closed,0); assert.equal(runtime.modelId,'writing-model'); assert.equal(runtime.state.status,'ready');
+  await runtime.shutdown();
+});
+test('a current idle health failure still removes readiness', async (t) => {
+  const runtime = new Runtime(await temporary(t), { checkHost: () => null });
+  runtime.sdk = {getLoadedModelInfo:async()=> {throw Object.assign(new Error('synthetic worker failure'),{code:'WORKER_CRASHED'});},close:async()=>{}};
+  runtime.modelId='writing-model';runtime.state.status='ready';
+  await runtime.checkHealth(); assert.equal(runtime.modelId,null);assert.equal(runtime.state.status,'failed');assert.equal(runtime.state.error.cause,'WORKER_CRASHED');
   await runtime.shutdown();
 });

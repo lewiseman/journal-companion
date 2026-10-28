@@ -16,15 +16,20 @@
     "package": "electron-forge package --platform=darwin --arch=arm64",
     "make": "electron-forge make --platform=darwin --arch=arm64",
     "verify:packaged": "node scripts/verify-packaged.cjs",
-    "verify:connection": "node scripts/verify-connection.cjs"
+    "verify:connection": "node scripts/verify-connection.cjs",
+    "prestart": "node scripts/bundle-runtime.cjs",
+    "bundle:runtime": "node scripts/bundle-runtime.cjs"
   },
-  "overrides": { "zod": "4.6.6" },
+  "overrides": {
+    "zod": "4.6.6"
+  },
   "dependencies": {
     "@qvac/registry-client": "0.7.0",
     "@qvac/sdk": "0.22.0",
     "bonjour-service": "1.4.4",
     "qrcode": "1.5.4",
-    "selfsigned": "5.5.0"
+    "selfsigned": "5.5.0",
+    "ws": "8.22.0"
   },
   "devDependencies": {
     "@electron-forge/cli": "7.11.2",

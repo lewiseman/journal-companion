@@ -1,3 +1,4 @@
+const { CONVERSATION_OPERATION, CONVERSATION_LIMITS, CONVERSATION_SYSTEM, conversationMessages, validateConversationInput, validateConversationOutput } = require('./conversation.cjs');
 const { randomInt } = require('node:crypto');
 const { EventEmitter } = require('node:events');
 const os = require('node:os');
@@ -73,7 +74,7 @@ class Runtime extends EventEmitter {
       await fs.mkdir(this.directory, { recursive: true, mode: 0o700 });
       const config = path.join(this.directory, 'runtime.json');
       await fs.writeFile(config, JSON.stringify({
-        plugins: ['@qvac/sdk/llamacpp-completion/plugin'], loggerConsoleOutput: false, loggerLevel: 'error',
+        plugins: ['@qvac/sdk/llamacpp-completion/plugin', '@qvac/sdk/whispercpp-transcription/plugin'], loggerConsoleOutput: false, loggerLevel: 'error',
         cacheDirectory: path.join(this.directory, 'runtime-cache'), requireHttpChecksum: true, requireSecureTransport: true,
       }), { mode: 0o600 });
       process.env.QVAC_CONFIG_PATH = config;
@@ -82,7 +83,7 @@ class Runtime extends EventEmitter {
     return this.sdk;
   }
   async operation(callback, { job = false } = {}) {
-    if (this.closed || this.busy || (this.reserved && !job)) throw new CompanionError('BUSY', 'Wait for accepted work to finish.');
+    if (this.closed || this.busy || this.audioReserved || (this.reserved && !job)) throw new CompanionError('BUSY', 'Wait for accepted work to finish.');
     if (this.unsupported) throw new CompanionError('UNSUPPORTED_HOST', this.unsupported);
     this.busy = true; this.stopMonitor();
     try { return await callback(); }
@@ -147,15 +148,17 @@ class Runtime extends EventEmitter {
     this.update({ status: 'unavailable', detail: 'Download verified. Load the model when you need it.' });
     return { ok: true };
   }); }
-  generate(prompt, { job = false, operation = 'text' } = {}) {
-    if (typeof prompt !== 'string' || !prompt.trim() || Buffer.byteLength(prompt, 'utf8') > 2000) {
+  generate(prompt, { job = false, operation = 'text', onToken = null } = {}) {
+    if (typeof prompt !== 'string' || !prompt.trim() || Buffer.byteLength(prompt, 'utf8') > (operation === CONVERSATION_OPERATION ? CONVERSATION_LIMITS.inputBytes : 2000)) {
       throw new CompanionError('INVALID_INPUT', 'Enter a short request of up to 2,000 UTF-8 bytes.');
     }
+    const conversation = operation === CONVERSATION_OPERATION;
+    if (conversation) validateConversationInput(prompt);
     const summary = operation === SUMMARY_OPERATION;
     if (summary) validateSummaryInput(prompt);
     const presentation = operation === PRESENTATION_OPERATION, diary = operation === DIARY_OPERATION, question = operation === QUESTION_OPERATION, history = operation === HISTORY_OPERATION;
-    const transform = Object.hasOwn(OPERATIONS, operation), boundedText = summary || transform || presentation || diary || question || history;
-    const limits = history ? HISTORY_LIMITS : question ? QUESTION_LIMITS : diary ? DIARY_LIMITS : presentation ? PRESENTATION_LIMITS : transform ? TRANSFORM_LIMITS : SUMMARY_LIMITS;
+    const transform = Object.hasOwn(OPERATIONS, operation), boundedText = conversation || summary || transform || presentation || diary || question || history;
+    const limits = conversation ? CONVERSATION_LIMITS : history ? HISTORY_LIMITS : question ? QUESTION_LIMITS : diary ? DIARY_LIMITS : presentation ? PRESENTATION_LIMITS : transform ? TRANSFORM_LIMITS : SUMMARY_LIMITS;
     if (transform) validateTransformInput(prompt, operation);
     if (presentation) validatePresentationInput(prompt);
     if (diary) validateDiaryInput(prompt);
@@ -166,9 +169,9 @@ class Runtime extends EventEmitter {
       this.cancelRequested = false;
       this.update({ status: 'working', detail: 'Writing on this Mac…', error: null });
       const run = this.sdk.completion({
-        modelId: this.modelId, history: [
-          { role: 'system', content: history ? HISTORY_SYSTEM : question ? QUESTION_SYSTEM : diary ? DIARY_SYSTEM : presentation ? PRESENTATION_SYSTEM : transform ? transformSystem(operation) : summary ? SUMMARY_SYSTEM : 'You are a helpful writing assistant. Give a brief, clear answer.' },
-          { role: 'user', content: transform || presentation || diary || question || history ? prompt : summary ? JSON.stringify({ note: prompt }) : prompt.trim() },
+        modelId: this.modelId, history: conversation ? conversationMessages(prompt) : [
+          { role: 'system', content: conversation ? CONVERSATION_SYSTEM : history ? HISTORY_SYSTEM : question ? QUESTION_SYSTEM : diary ? DIARY_SYSTEM : presentation ? PRESENTATION_SYSTEM : transform ? transformSystem(operation) : summary ? SUMMARY_SYSTEM : 'You are a helpful writing assistant. Give a brief, clear answer.' },
+          { role: 'user', content: conversation || transform || presentation || diary || question || history ? prompt : summary ? JSON.stringify({ note: prompt }) : prompt.trim() },
         ], stream: true, kvCache: false,
         ...(presentation ? { responseFormat: presentationResponseFormat(prompt) } : diary ? { responseFormat: diaryResponseFormat() } : question ? { responseFormat: questionResponseFormat() } : history ? { responseFormat: historyResponseFormat() } : {}),
         // Questions vary so that asking again gives a fresh one; other bounded
@@ -187,7 +190,7 @@ class Runtime extends EventEmitter {
               await this.cancelGeneration();
               throw new CompanionError('INVALID_OUTPUT', 'The result exceeded the output limit. Retry explicitly.');
             }
-            if (!job) this.emit('token', token);
+            if (onToken) onToken(token); else if (!job) this.emit('token', token);
           }
           await run.text;
           if (boundedText && run.final) stopReason = (await run.final).stopReason;
@@ -205,7 +208,7 @@ class Runtime extends EventEmitter {
       if (boundedText) {
         if (stopReason === 'length') return { ok: false, error: { code: 'OUTPUT_LIMIT', message: `The result reached its ${limits.outputTokens}-token limit. No partial result was returned; try a shorter passage.` } };
         if (stopReason === 'cancelled') return { ok: false, error: { code: 'CANCELLED', message: 'Summary cancelled.' } };
-        try { text = history ? validateHistoryOutput(text) : question ? validateQuestionOutput(text) : diary ? validateDiaryOutput(text) : presentation ? validatePresentationOutput(text) : transform ? validateTransformOutput(text) : validateSummaryOutput(text); }
+        try { text = conversation ? validateConversationOutput(text, prompt) : history ? validateHistoryOutput(text) : question ? validateQuestionOutput(text) : diary ? validateDiaryOutput(text) : presentation ? validatePresentationOutput(text) : transform ? validateTransformOutput(text) : validateSummaryOutput(text); }
         catch (error) { return { ok: false, error: { code: error.code, message: error.message } }; }
       }
       return { ok: true, text };
@@ -230,25 +233,38 @@ class Runtime extends EventEmitter {
     this.update({ status: 'unavailable', detail: 'Model unloaded. Load it when you need it.', error: null });
     return { ok: true };
   }); }
-  stopMonitor() { clearInterval(this.monitor); this.monitor = null; }
+  reserveAudio() { this.audioReserved = true; this.stopMonitor(); }
+  releaseAudio() {
+    this.audioReserved = false;
+    if (this.modelId && !this.closed && !this.busy) this.startMonitor();
+  }
+  stopMonitor() {
+    this.monitorGeneration = (this.monitorGeneration || 0) + 1;
+    clearInterval(this.monitor); this.monitor = null;
+  }
+  async checkHealth(generation = this.monitorGeneration) {
+    if (this.busy || this.audioReserved || this.checking || !this.modelId || !this.sdk || this.closed) return;
+    this.checking = true;
+    const checkedId = this.modelId, checkedSdk = this.sdk;
+    try { await bounded(checkedSdk.getLoadedModelInfo({ modelId: checkedId }), 10000); }
+    catch (cause) {
+      // A probe started before audio/loading is no longer evidence about an
+      // idle worker, even if its delayed failure arrives after audio releases.
+      if (generation === this.monitorGeneration && !this.busy && !this.audioReserved && !this.closed && this.modelId === checkedId && this.sdk === checkedSdk) {
+        this.modelId = null; this.stopMonitor(); await this.closeSdk();
+        const error = { ...publicError({ code: 'WORKER_FAILED' }), source: 'idle-health-check',
+          cause: String(cause?.code || cause?.name || 'UNKNOWN').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64) };
+        this.update({ status: 'failed', detail: error.message, error });
+      }
+    } finally { this.checking = false; }
+  }
   startMonitor() {
     this.stopMonitor();
-    this.monitor = setInterval(async () => {
-      if (this.busy || this.checking || !this.modelId) return;
-      this.checking = true;
-      const checkedId = this.modelId;
-      try { await bounded(this.sdk.getLoadedModelInfo({ modelId: checkedId }), 10000); }
-      catch {
-        if (!this.busy && !this.closed && this.modelId === checkedId) {
-          this.modelId = null; this.stopMonitor(); await this.closeSdk();
-          const error = publicError({ code: 'WORKER_FAILED' });
-          this.update({ status: 'failed', detail: error.message, error });
-        }
-      } finally { this.checking = false; }
-    }, 4000);
+    const generation = this.monitorGeneration;
+    this.monitor = setInterval(() => this.checkHealth(generation), 4000);
     this.monitor.unref();
   }
-  async closeSdk() { if (this.sdk) { try { await bounded(this.sdk.close(), 5000); } catch {} } }
+  async closeSdk() { if (this.sdk) { this.emit('sdkClosed'); const sdk = this.sdk; this.sdk = null; try { await bounded(sdk.close(), 5000); } catch {} } }
   async shutdown() {
     this.closed = true; this.stopMonitor(); this.downloadAbort?.abort();
     // close() terminates Bare even when a native load/completion is stuck.

@@ -1,0 +1,178 @@
+{
+  "checked": "2026-10-27T23:23:28.577Z",
+  "host": "darwin arm64",
+  "memoryGB": 24,
+  "sdk": "0.22.0",
+  "model": "whisper-large-v3-turbo@5359861c739e955e79d9a303bcbc70fb988958b1",
+  "vad": "silero-vad-5.1.2@9ffd54a1e1ee413ddf265af9913beaf518d1639b",
+  "fixture": "jfk.wav",
+  "actualAndroidMicrophone": false,
+  "swahiliQualityMeasured": false,
+  "speechSynthesis": false,
+  "loadMs": 2084,
+  "combinedModels": [
+    "llama-3.1-8b-instruct-q4_k_m@bf5b95e96dac0462e2a09145ec66cae9a3f12067",
+    "whisper-large-v3-turbo@5359861c739e955e79d9a303bcbc70fb988958b1",
+    "silero-vad-5.1.2@9ffd54a1e1ee413ddf265af9913beaf518d1639b"
+  ],
+  "loadedResourceSample": {
+    "sampledAt": 1793143418247,
+    "cpu": {
+      "status": "supported",
+      "value": 0.2554054054054054,
+      "provenance": {
+        "source": "bare-cpu-info",
+        "scope": "system"
+      }
+    },
+    "memory": {
+      "usedBytes": {
+        "status": "supported",
+        "value": 22442803200,
+        "provenance": {
+          "source": "bare-cpu-info",
+          "scope": "system"
+        }
+      },
+      "totalBytes": {
+        "status": "supported",
+        "value": 25769803776,
+        "provenance": {
+          "source": "bare-cpu-info",
+          "scope": "system"
+        }
+      },
+      "processUsedBytes": {
+        "status": "supported",
+        "value": 2581983408,
+        "provenance": {
+          "source": "bare-os",
+          "scope": "process"
+        }
+      },
+      "processAvailableBytes": {
+        "status": "unavailable",
+        "reason": "the per-process allowance is not exposed on this platform"
+      }
+    },
+    "gpus": {
+      "status": "supported",
+      "value": [
+        {
+          "id": "d75f89eb-cb65-4def-bc77-194973989d43",
+          "compute": {
+            "status": "supported",
+            "value": 0.09,
+            "provenance": {
+              "source": "bare-gpu-info",
+              "scope": "device"
+            }
+          },
+          "encode": {
+            "status": "unavailable",
+            "reason": "Metric is unavailable"
+          },
+          "decode": {
+            "status": "unavailable",
+            "reason": "Metric is unavailable"
+          },
+          "memoryUsedBytes": {
+            "status": "unverified",
+            "reason": "GPU memory usage scope is unverified"
+          },
+          "memoryTotalBytes": {
+            "status": "unverified",
+            "reason": "GPU memory scope is unverified"
+          },
+          "powerWatts": {
+            "status": "unavailable",
+            "reason": "Metric is unavailable"
+          },
+          "temperatureCelsius": {
+            "status": "unavailable",
+            "reason": "Metric is unavailable"
+          }
+        }
+      ],
+      "provenance": {
+        "source": "bare-gpu-info"
+      }
+    }
+  },
+  "realtimePublicSpeech": {
+    "state": "completed",
+    "text": "And so, my fellow Americans. Ask not! what your country can do for you. Ask what you can do for your country.",
+    "audioSeconds": 12,
+    "firstTextMs": 4190,
+    "inputEndedMs": 12160,
+    "finishedMs": 12503,
+    "segments": [
+      {
+        "id": 0,
+        "text": " And so, my fellow Americans.",
+        "startMs": 9.999999776482582,
+        "endMs": 2109.999895095825,
+        "receivedMs": 4190
+      },
+      {
+        "id": 1,
+        "text": " Ask not!",
+        "startMs": 9.999999776482582,
+        "endMs": 1309.999942779541,
+        "receivedMs": 6245
+      },
+      {
+        "id": 2,
+        "text": " what your country can do for you.",
+        "startMs": 9.999999776482582,
+        "endMs": 2460.0000381469727,
+        "receivedMs": 9518
+      },
+      {
+        "id": 3,
+        "text": " Ask what you can do for your country.",
+        "startMs": 0,
+        "endMs": 2589.9999141693115,
+        "receivedMs": 12466
+      }
+    ]
+  },
+  "silence": {
+    "state": "completed",
+    "text": "",
+    "audioSeconds": 2,
+    "inputEndedMs": 38,
+    "finishedMs": 98,
+    "segments": []
+  },
+  "diaryQuestion": {
+    "ok": true,
+    "text": "Was the market busier than usual?"
+  },
+  "diaryDraft": {
+    "ok": true,
+    "text": "I walked home through the market today. I felt calm."
+  },
+  "explicitEnglishDraft": {
+    "ok": true,
+    "text": "I am not buying anything. I felt calm."
+  },
+  "peakProcessRssMB": 469.96875,
+  "note": "Real QVAC + TLS/WebSocket + macOS safeStorage with public speech. This is not physical Android microphone or mixed-language accuracy evidence.",
+  "translationQualityCheck": {
+    "source": "Leo nilitembea sokoni. I felt calm.",
+    "expectedMeaning": "Today I walked to the market. I felt calm.",
+    "passed": false,
+    "separateProbe": true,
+    "finding": "Llama 3.1 8B mistranslated the Swahili statement in a separate probe with the final explicit-translation prompt. Source remains visible and editable; do not advertise verified Swahili translation."
+  },
+  "realDeviceStartupFix": {
+    "date": "2026-10-28",
+    "deviceModel": "Samsung SM-S928B",
+    "observedRecordingSeconds": 6,
+    "observedDesktopTaskState": "completed",
+    "source": "Running companion Activity after updating the phone, loading speech and retrying.",
+    "transcriptContentInspected": false,
+    "reviewedJournalSaveVerified": false
+  }
+}

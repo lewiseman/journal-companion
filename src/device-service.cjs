@@ -18,9 +18,9 @@ function localAddresses() {
   return Object.values(os.networkInterfaces()).flat().filter((a) => a && a.family === 'IPv4' && !a.internal).map((a) => a.address);
 }
 class DeviceService extends EventEmitter {
-  constructor(vault, library, jobs, { port = 47921, host = '0.0.0.0', advertise = true, now = Date.now } = {}) {
+  constructor(vault, library, jobs, { port = 47921, host = '0.0.0.0', advertise = true, now = Date.now, voice = null } = {}) {
     super(); Object.assign(this, { vault, library, jobs, port, host, advertise, now });
-    this.nonces = new Map(); this.pending = new Map(); this.seen = new Map(); this.buckets = new Map(); this.error = null;
+    this.voice = voice; this.nonces = new Map(); this.pending = new Map(); this.seen = new Map(); this.buckets = new Map(); this.error = null;
   }
   async initialize() {
     if (!this.vault.value.identity) {
@@ -56,6 +56,7 @@ class DeviceService extends EventEmitter {
   async start() {
     if (this.server) return;
     const server = https.createServer({ key: this.identity.key, cert: this.identity.cert, minVersion: 'TLSv1.2', maxHeaderSize: 4096 }, (req, res) => this.handle(req, res));
+    this.voice?.attach(server, this);
     server.requestTimeout = 10000; server.headersTimeout = 10000; server.keepAliveTimeout = 1000;
     server.on('tlsClientError', () => {});
     await new Promise((resolve, reject) => { server.once('error', reject); server.listen(this.port, this.host, resolve); });
@@ -95,7 +96,7 @@ class DeviceService extends EventEmitter {
     p.state = allowed ? 'approved' : 'denied'; this.emit('change'); return { ok: true };
   }
   async revoke(id) {
-    await this.jobs.forget(id); this.seen.delete(id);
+    await this.voice?.forget(id); await this.jobs.forget(id); this.seen.delete(id);
     for (const [ticket, p] of this.pending) if (p.id === id) this.pending.delete(ticket);
     this.emit('change'); return { ok: true };
   }
@@ -143,9 +144,15 @@ class DeviceService extends EventEmitter {
       return { state: p.state, id: p.id };
     }
     const id = this.authenticate(req, raw);
-    if (req.method === 'GET' && route === '/v1/status') return { v: VERSION, recovery: 1, id: this.identity.id, name: os.hostname().slice(0, 48), transport: 'connected', capabilities: [this.library.capability()] };
+    if (req.method === 'GET' && route === '/v1/status') return { v: VERSION, recovery: 1, id: this.identity.id, name: os.hostname().slice(0, 48), transport: 'connected', capabilities: [this.library.capability(), ...(this.voice ? [this.voice.speech.capability(), { id: 'speech', implemented: false, status: 'unavailable', reason: 'Read replies on screen. Speech synthesis is not enabled.' }] : [])] };
     if (req.method === 'POST' && route === '/v1/disconnect') { this.seen.delete(id); this.emit('change'); return { ok: true }; }
     if (req.method === 'POST' && route === '/v1/forget') return this.revoke(id);
+    const voiceMatch = /^\/v1\/voice\/([a-zA-Z0-9_-]{8,80})(\/cancel|\/ack)?$/.exec(route);
+    if (voiceMatch && this.voice) {
+      if (req.method === 'GET' && !voiceMatch[2]) return this.voice.get(id, voiceMatch[1]);
+      if (req.method === 'POST' && voiceMatch[2] === '/cancel') return this.voice.cancel(id, voiceMatch[1]);
+      if (req.method === 'POST' && voiceMatch[2] === '/ack') return this.voice.ack(id, voiceMatch[1]);
+    }
     if (req.method === 'POST' && route === '/v1/jobs') return this.jobs.submit(id, body);
     const match = /^\/v1\/jobs\/([a-zA-Z0-9_-]{8,80})(\/cancel|\/ack)?$/.exec(route);
     if (match) {
@@ -158,7 +165,7 @@ class DeviceService extends EventEmitter {
   async handle(req, res) {
     try {
       const chunks = []; let bytes = 0;
-      for await (const chunk of req) { bytes += chunk.length; if (bytes > 8192) throw new CompanionError('INVALID_INPUT', 'Request too large.'); chunks.push(chunk); }
+      for await (const chunk of req) { bytes += chunk.length; if (bytes > (req.url === '/v1/jobs' ? 32768 : 8192)) throw new CompanionError('INVALID_INPUT', 'Request too large.'); chunks.push(chunk); }
       const raw = Buffer.concat(chunks).toString('utf8');
       const result = await this.route(req, raw);
       this.reply(res, 200, result);
@@ -177,7 +184,7 @@ class DeviceService extends EventEmitter {
   async stop() {
     this.pairing = null; this.pending.clear(); this.nonces.clear(); this.seen.clear();
     this.broadcast?.stop(); this.bonjour?.destroy(); this.bonjour = null;
-    if (this.server) { const server = this.server; this.server = null; server.closeAllConnections(); await new Promise((r) => server.close(r)); }
+    if (this.server) { const server = this.server; this.server = null; for (const session of this.voice?.connections.values() || []) session.ws.terminate(); this.voice?.talk?.shutdown(); server.closeAllConnections(); await new Promise((r) => server.close(r)); }
     this.emit('change');
   }
   async disable() { await this.vault.change((data) => { data.enabled = false; }); await this.stop(); return { ok: true }; }

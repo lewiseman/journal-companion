@@ -5,6 +5,9 @@ const { Runtime, publicError } = require('./runtime.cjs');
 const { Vault } = require('./vault.cjs');
 const { Library } = require('./library.cjs');
 const { Jobs } = require('./jobs.cjs');
+const { Speech } = require('./speech.cjs');
+const { Voice } = require('./voice.cjs');
+const { Talk } = require('./talk.cjs');
 const { DeviceService } = require('./device-service.cjs');
 const { CompanionError, getModel } = require('./model.cjs');
 
@@ -26,8 +29,8 @@ if (verification || connectionDemo) {
 if (connectionDemo) process.on('SIGTERM', () => app.quit());
 let window;
 let runtime;
-let library, vault, jobs, devices, serviceError;
-const snapshot = () => ({ ...runtime.snapshot(), library: library?.snapshot(), devices: devices?.snapshot(), activity: jobs?.list() || [], serviceError });
+let library, vault, jobs, devices, speech, voice, talk, serviceError;
+const snapshot = () => ({ ...runtime.snapshot(), library: library?.snapshot(), devices: devices?.snapshot(), activity: [...(jobs?.list() || []), ...(voice?.list() || [])], speech: speech?.capability(), serviceError });
 const publish = () => { if (window && !window.isDestroyed()) window.webContents.send('companion:state', snapshot()); };
 let quitting = false;
 const APP_URL = 'journal://companion/index.html';
@@ -70,7 +73,8 @@ else {
       { label: 'Window', submenu: [{ role: 'minimize' }, { role: 'zoom' }] },
     ]));
     runtime = new Runtime(app.getPath('userData'));
-    runtime.on('state', publish);
+    runtime.on('state', () => { publish(); if (!quitting && !runtime.busy && !runtime.audioReserved) jobs?.pump(); });
+    speech = new Speech(runtime); speech.on('change', () => { publish(); if (!quitting && !speech.busy && !voice?.pumping) jobs?.pump(); });
     runtime.on('token', (value) => { if (!window.isDestroyed()) window.webContents.send('companion:token', value); });
     library = new Library(runtime);
     library.on('change', publish);
@@ -91,6 +95,7 @@ else {
     };
     const reconcile = async (action) => { const result = await action(); await library.reconcile(); publish(); return result; };
     handle('state', noArgs(snapshot));
+    handle('loadSpeech', withModel((model) => speech.load(model.id)));
     const download = (model, autoLoad) => {
       if (library.downloading) throw new CompanionError('BUSY', 'Wait for the current download to finish.');
       return model.capability !== 'text' ? library.downloadArtifact(model.id) : reconcile(() => runtime.download(autoLoad, model.id));
@@ -126,7 +131,7 @@ else {
     });
     handle('cancelJob', (...args) => {
       if (args.length !== 2 || !args.every((a) => typeof a === 'string') || !jobs) throw new CompanionError('INVALID_INPUT', 'Invalid task.');
-      return jobs.cancel(args[0], args[1]);
+      return voice?.list().some((j) => j.device === args[0] && j.id === args[1]) ? voice.cancel(args[0], args[1]) : jobs.cancel(args[0], args[1]);
     });
     handle('generate', (...args) => {
       if (args.length !== 1) throw new Error('Invalid arguments');
@@ -145,16 +150,21 @@ else {
     await window.loadURL(APP_URL);
     await runtime.initialize();
     await library.initialize();
+    await speech.initialize();
     try {
       const protector = { isEncryptionAvailable: () => safeStorage.isAsyncEncryptionAvailable(),
         encryptString: (value) => safeStorage.encryptStringAsync(value),
         decryptString: async (value) => (await safeStorage.decryptStringAsync(value)).result };
       vault = new Vault(app.getPath('userData'), protector); await vault.initialize();
-      jobs = new Jobs(vault, runtime, library); await jobs.initialize(); jobs.on('change', publish);
+      voice = new Voice(vault, speech); voice.on('change', () => { publish(); if (!quitting && !speech.busy && !voice.pumping) jobs?.pump(); }); await voice.initialize();
+      talk = new Talk(vault, speech, runtime); voice.talk = talk; talk.on('change', () => { publish(); if (quitting || talk.active) return; voice.pump().catch(() => {}); if (!speech.busy && !voice.pumping) jobs?.pump(); });
+      jobs = new Jobs(vault, runtime, library);
+      // A live talk session keeps the writing model free between turns.
+      jobs.paused = () => !!talk?.active; await jobs.initialize(); jobs.on('change', publish);
       const demoPortArg = connectionDemo && process.argv.find((arg) => arg.startsWith('--demo-port='));
       const demoPort = demoPortArg ? Number(demoPortArg.slice('--demo-port='.length)) : 47921;
       if (!Number.isInteger(demoPort) || demoPort < 1 || demoPort > 65535) throw new Error('Invalid demo port');
-      devices = new DeviceService(vault, library, jobs, { port: demoPort }); devices.on('change', publish); await devices.initialize();
+      devices = new DeviceService(vault, library, jobs, { port: demoPort, voice }); devices.on('change', publish); await devices.initialize();
     } catch { serviceError = 'Phone service unavailable. Unlock your macOS Keychain, check disk space, then quit and reopen the companion.'; devices = null; }
     publish();
     if (connectionDemo && devices && process.argv.includes('--recovery-phone-fixture')) {
@@ -191,5 +201,5 @@ app.on('before-quit', (event) => {
   if (quitting || !runtime) return;
   event.preventDefault(); quitting = true;
   const deadline = setTimeout(() => app.exit(1), 20000);
-  (async () => { await library?.shutdown(); await devices?.stop(); await jobs?.shutdown(); await runtime.shutdown(); })().catch(() => { process.exitCode = 1; }).finally(() => { clearTimeout(deadline); app.exit(process.exitCode || 0); });
+  (async () => { await library?.shutdown(); await devices?.stop(); await voice?.shutdown(); await jobs?.shutdown(); await runtime.shutdown(); })().catch(() => { process.exitCode = 1; }).finally(() => { clearTimeout(deadline); app.exit(process.exitCode || 0); });
 });
