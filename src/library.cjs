@@ -10,6 +10,7 @@ const { DIARY_OPERATION, DIARY_LIMITS } = require('./diary.cjs');
 const { QUESTION_OPERATION, QUESTION_LIMITS } = require('./question.cjs');
 const { REFLECTION_OPERATION, REFLECTION_LIMITS } = require('./reflection.cjs');
 const { HISTORY_OPERATION, HISTORY_LIMITS } = require('./history.cjs');
+const { QUESTION_OPERATIONS, NOTE_QUESTION_LIMITS } = require('./note-question.cjs');
 const { NOTE_HELP, NOTE_HELP_LIMITS } = require('./note-help.cjs');
 const { WEBSITE_LIMITS } = require('./website.cjs');
 
@@ -86,7 +87,7 @@ class Library extends EventEmitter {
     const status = !assigned ? 'unassigned' : r.unsupported ? 'incompatible' : r.state.status === 'failed' ? 'failed'
       : r.audioReserved ? 'busy' : r.busy ? (r.state.status === 'working' ? 'busy' : 'loading') : r.modelId ? 'ready' : !this.installed ? 'needs_download' : 'unloaded';
     return { id: 'text', implemented: true, model: this.assignment, status, reason: !this.assignment ? 'Assign the installed writing model.' : r.state.detail,
-      operations: [CONVERSATION_OPERATION, 'text', SUMMARY_OPERATION, ...Object.keys(OPERATIONS), PRESENTATION_OPERATION, DIARY_OPERATION, QUESTION_OPERATION, HISTORY_OPERATION, ...Object.keys(NOTE_HELP), REFLECTION_OPERATION], summaryLimits: SUMMARY_LIMITS, transformLimits: TRANSFORM_LIMITS, presentationContract: 1, presentationLimits: PRESENTATION_LIMITS, diaryContract: 1, diaryLimits: DIARY_LIMITS, questionContract: 1, questionLimits: QUESTION_LIMITS, historyContract: 1, historyLimits: HISTORY_LIMITS, reflectionContract: 1, reflectionLimits: REFLECTION_LIMITS,
+      operations: [CONVERSATION_OPERATION, 'text', SUMMARY_OPERATION, ...Object.keys(OPERATIONS), PRESENTATION_OPERATION, DIARY_OPERATION, QUESTION_OPERATION, HISTORY_OPERATION, ...QUESTION_OPERATIONS, ...Object.keys(NOTE_HELP), REFLECTION_OPERATION], summaryLimits: SUMMARY_LIMITS, transformLimits: TRANSFORM_LIMITS, presentationContract: 1, presentationLimits: PRESENTATION_LIMITS, diaryContract: 1, diaryLimits: DIARY_LIMITS, questionContract: 1, questionLimits: QUESTION_LIMITS, historyContract: 1, historyLimits: HISTORY_LIMITS, noteQuestionContract: 1, thoughtQuestionContract: 1, noteQuestionLimits: NOTE_QUESTION_LIMITS, reflectionContract: 1, reflectionLimits: REFLECTION_LIMITS,
       noteHelpContract: 1, noteHelpLimits: NOTE_HELP_LIMITS, websiteContract: 1, websiteLimits: WEBSITE_LIMITS,
       websiteModel: (r.codingModel || r.model || MODEL).name };
   }

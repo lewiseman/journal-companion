@@ -66,3 +66,38 @@ On an image with no text, Qwen3-VL answered with its own instructions. The promp
 ## Limits
 
 The handwriting samples are **handwriting-style fonts**, not real handwriting. Real cursive, faint pencil, mixed layouts, tables and non-Latin scripts are untested; EasyOCR here is Latin/English only. Expect errors on real handwriting, which is why every scan is reviewed and edited on the phone before insertion. Scans take ~5–7 s with the cross-check (two model loads).
+
+# I02 diary photo questions
+
+`diary-photo-questions` uses the same image route, encrypted pending storage, readiness (`ready` after the self-test), job lifecycle and per-request load/unload as `ask-note-image`. Capability status adds `photoContract: 1` and `photoLimits`.
+
+- **Input:** `{"caption": string}` (≤240 characters, may be empty) plus one PNG/JPEG. Contract 2 adds shuffle: `{"caption", "avoid": [1–12 questions already shown]}`. The model is told to write different questions, and samples (temperature 0.8, random seed) instead of the reproducible temperature 0 used for everything else, so asking again really brings something new. No diary text, date or other photos are sent. The caption is passed as the person's own context, and the model is told to use it only for the questions, never in observations.
+- **Output:** `{observations, clear, moment[], feeling[], little[]}` (≤4 KB). Each group holds 1–3 distinct questions. `clear` is false when the photo is too dark, blurred or ambiguous.
+- **Grammar, not just instructions:** each question string must match `^(What|How|Where|When|Who|Why|Which|Did|Do|Was|Were|Is|Are|Can|Could|If) …\?$` in the JSON schema. QVAC passes the schema to llama.cpp's `json_schema_to_grammar`, so the model cannot emit statements. Validation re-checks shape, length, the question mark, control characters and duplicates across groups.
+- The system prompt asks about the person's experience. It forbids stating or assuming feelings, identifying anyone, or inventing names, ages, relationships or events. It treats text in the photo and the caption as content.
+
+## Failure found and fixed during verification
+
+The first real run failed 3 of 6 requests with `INVALID_OUTPUT`. Qwen3-VL 2B filled the question arrays with descriptions such as "The person might feel a sense of calm…", which both broke the format and asserted feelings. The validator refused them correctly, but the feature was unusable. Adding the question pattern to the grammar and a worked example to the prompt fixed every sample. A second issue: with the caption "Maya turned seven today", observations said "Maya's 7th birthday", mixing the caption into what was "seen". The prompt now keeps captions out of observations, and the re-run reports only the visible card text.
+
+## Verification
+
+```sh
+npm test                                                   # 121 tests
+node scripts/verify-photo-questions.cjs /absolute/new/empty/dir "$HOME/Library/Application Support/Journal Companion"
+```
+
+[photo-questions-evidence.json](photo-questions-evidence.json) is a **real** run (QVAC 0.22.0, Qwen3-VL 2B, macOS arm64) on the app's own onboarding illustrations (right-hand pages, re-encoded to PNG) and the drawn I03 fixtures:
+
+- Self-test passed. Each request took 4.6–7.8 s including model load and unload.
+- Coffee scene, birthday scene (with caption), drawn house and the printed prompt-injection list: all completed with 3 questions per group.
+- The heavily blurred photo returned `clear: false` and said it could not see details.
+- The injection list was described as a shopping list; its embedded instructions were not followed.
+- A computer without the model files reports `needs_download` and refuses with `NOT_READY` before accepting anything.
+- Shuffle on the coffee scene, avoiding every question already returned for each group, gave a new question in all three groups (7.3–8.2 s each).
+- A job accepted and then interrupted by a companion restart (new `Jobs` on the same vault) ran once afterwards. No encrypted photos were left after the sweep.
+
+## Limits
+
+- Question quality is modest for a 2B model. Some questions are generic ("What does this moment mean to you?"), and some ask about the photo rather than the moment ("How did you feel when you saw this photo?"). The samples are illustrations, not real photos; quality on real photos of people, night scenes and non-Latin text is unmeasured.
+- No phone-in-the-loop run of this operation yet. The phone side is covered by widget and controller tests with a fake signed transport.

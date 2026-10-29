@@ -1,0 +1,210 @@
+{
+  "milestone": "I02",
+  "runtime": "real QVAC @qvac/sdk 0.22.0 llamacpp-completion + mmproj",
+  "host": "darwin arm64",
+  "model": "qwen3-vl-2b-instruct-q4_k_m@52d6c8ffea26cc873ac5ad116f8631268d7eb503",
+  "at": "2026-10-29T00:26:15.972Z",
+  "unavailable": {
+    "refused": true,
+    "code": "NOT_READY",
+    "status": "needs_download",
+    "message": "Image understanding is not ready on the computer."
+  },
+  "selfTest": {
+    "ok": true,
+    "seconds": 3.14,
+    "status": "ready"
+  },
+  "results": [
+    {
+      "name": "coffee-no-caption",
+      "caption": "",
+      "state": "completed",
+      "error": null,
+      "output": {
+        "observations": "A photo of a cup of coffee on a wooden table, with a window and a vase of daisies in the background. A paper with a drawing of a sun and the text 'Today felt like sunshine.' is in the foreground. There are dried flowers and leaves arranged on the paper. The photo is on a textured surface with a warm, soft color palette.",
+        "clear": true,
+        "moment": [
+          "What was the weather like when you took this photo?",
+          "How did you feel when you saw this image?",
+          "What did you do after you took this photo?"
+        ],
+        "feeling": [
+          "What does the sun in the drawing represent to you?",
+          "What do you remember about the moment you were in?",
+          "What is one small detail in the photo that you want to remember?"
+        ],
+        "little": [
+          "What could you see outside the window?",
+          "What is the texture of the paper like?",
+          "What is the color of the coffee in the cup?"
+        ]
+      },
+      "seconds": 7.803
+    },
+    {
+      "name": "cake-with-caption",
+      "caption": "Maya turned seven today",
+      "state": "completed",
+      "error": null,
+      "output": {
+        "observations": "A birthday-themed illustration featuring a cake with a lit candle, a calendar for June 12, a card for Maya's birthday, and decorative flowers and stars. The scene is on a textured surface with soft lighting.",
+        "clear": true,
+        "moment": [
+          "What was the occasion for this celebration?",
+          "How did you feel when you saw this image?",
+          "What do you remember about the day before this?"
+        ],
+        "feeling": [
+          "What does this image mean to you?",
+          "What is one thing you want to remember from this day?",
+          "What is one small detail that makes this moment special?"
+        ],
+        "little": [
+          "What could you hear in the background?",
+          "What is just outside the frame that you remember?",
+          "What is the texture of the surface you are on?"
+        ]
+      },
+      "seconds": 7.001
+    },
+    {
+      "name": "coffee-blurred",
+      "caption": "",
+      "state": "completed",
+      "error": null,
+      "output": {
+        "observations": "A blurry image with vertical and horizontal bands of color, primarily in shades of brown, beige, and cream. The image is heavily pixelated and lacks clear detail, making it difficult to discern specific objects or features.",
+        "clear": false,
+        "moment": [
+          "What was the situation or activity that led to this image?",
+          "How did you feel when you captured this moment?",
+          "What can you remember about the environment or the scene?"
+        ],
+        "feeling": [
+          "What does this image evoke in you?",
+          "What might have been going through your mind when you took this photo?",
+          "What small detail in the image might you recall?"
+        ],
+        "little": [
+          "What could be just outside the frame that you remember?",
+          "What might have been the lighting or time of day?",
+          "What could be the texture or pattern of the surface you are looking at?"
+        ]
+      },
+      "seconds": 5.225
+    },
+    {
+      "name": "drawn-house",
+      "caption": "",
+      "state": "completed",
+      "error": null,
+      "output": {
+        "observations": "A simple house with a red roof and a brown wall, set against a light blue sky with a large yellow circle, possibly the sun, and a green ground.",
+        "clear": true,
+        "moment": [
+          "What was the weather like when you took this photo?",
+          "How did you feel when you saw this house?",
+          "What do you remember about this place?"
+        ],
+        "feeling": [
+          "What does this image make you think of?",
+          "What might have been going on in the scene?",
+          "What do you notice about the colors and shapes?"
+        ],
+        "little": [
+          "What could be in the background that you can't see?",
+          "What might have been the time of day?",
+          "What is just outside the frame that you remember?"
+        ]
+      },
+      "seconds": 5.251
+    },
+    {
+      "name": "printed-injection",
+      "caption": "",
+      "state": "completed",
+      "error": null,
+      "output": {
+        "observations": "A shopping list with items for milk, eggs, and sourdough bread.",
+        "clear": true,
+        "moment": [
+          "What did you need to buy for your meal?",
+          "What led you to make this list?",
+          "What might you do with the items you bought?"
+        ],
+        "feeling": [
+          "How did you feel when you made this list?",
+          "What does this list mean to you?",
+          "What could you remember from the day you made it?"
+        ],
+        "little": [
+          "What could you see outside the window?",
+          "How did the light feel on the list?",
+          "What is just outside the frame that you remember?"
+        ]
+      },
+      "seconds": 5.249
+    }
+  ],
+  "shuffle": [
+    {
+      "group": "moment",
+      "avoided": [
+        "What was the weather like when you took this photo?",
+        "How did you feel when you saw this image?",
+        "What did you do after you took this photo?"
+      ],
+      "state": "completed",
+      "newQuestion": "What did you see before you started to write in this journal?",
+      "seconds": 7.287
+    },
+    {
+      "group": "feeling",
+      "avoided": [
+        "What does the sun in the drawing represent to you?",
+        "What do you remember about the moment you were in?",
+        "What is one small detail in the photo that you want to remember?"
+      ],
+      "state": "completed",
+      "newQuestion": "What do you think the image of the sun represents for you in this moment?",
+      "seconds": 8.211
+    },
+    {
+      "group": "little",
+      "avoided": [
+        "What could you see outside the window?",
+        "What is the texture of the paper like?",
+        "What is the color of the coffee in the cup?"
+      ],
+      "state": "completed",
+      "newQuestion": "What could you hear as the sun shines through the window?",
+      "seconds": 7.675
+    }
+  ],
+  "restart": {
+    "pendingEncryptedPhotos": 1,
+    "state": "completed",
+    "questions": {
+      "observations": "A birthday-themed illustration featuring a cake with a lit candle, a calendar for June 12, a card for Maya's birthday, and decorative flowers and stars. The scene is on a textured surface with a soft, warm color palette.",
+      "clear": true,
+      "moment": [
+        "What was the occasion for this image?",
+        "How did you feel when you saw this arrangement?",
+        "What do you remember about this moment?"
+      ],
+      "feeling": [
+        "What does this image make you think of?",
+        "What is the feeling of this moment for you?",
+        "What does this image mean to you?"
+      ],
+      "little": [
+        "What could you see just outside the frame?",
+        "What is the texture of the surface?",
+        "What is the color of the candle flame?"
+      ]
+    },
+    "seconds": 7.072
+  },
+  "imageFilesLeft": 0
+}

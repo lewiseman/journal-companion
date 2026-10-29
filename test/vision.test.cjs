@@ -180,3 +180,70 @@ test('a scan that repeats its instructions is reported as no legible text', asyn
   const result = await vision.run({ mode: 'transcribe' }, { type: 'image/png', bytes: selfTestImage() }, { operation: SCAN_OPERATION });
   assert.deepEqual(JSON.parse(result.text), { text: '', readable: false, check: null });
 });
+
+test('I02 diary photo questions: strict caption input, grouped questions, and the same private image route', async (t) => {
+  const { PHOTO_OPERATION, PHOTO_SYSTEM, validatePhotoInput, validatePhotoOutput, photoResponseFormat, validateImageJobInput } = require('../src/vision.cjs');
+  const questions = { observations: 'A beach at sunset with a red umbrella.', clear: true,
+    moment: ['What led you down to the beach that evening?'], feeling: ['How did you feel as the sun went down?', 'What did this evening mean to you?'],
+    little: ['What could you hear near the red umbrella?'] };
+  assert.deepEqual(validatePhotoInput('{"caption":""}'), { caption: '' });
+  assert.deepEqual(validateImageJobInput('{"caption":"Last swim of summer"}', PHOTO_OPERATION), { caption: 'Last swim of summer' });
+  assert.deepEqual(validatePhotoInput(JSON.stringify({ caption: '', avoid: ['What led you here?'] })).avoid, ['What led you here?']);
+  for (const bad of ['{}', '{"caption":1}', JSON.stringify({ caption: 'x'.repeat(241) }), JSON.stringify({ caption: '', diary: 'private' }), '{"caption":"a\u0007"}',
+    JSON.stringify({ caption: '', avoid: [] }), JSON.stringify({ caption: '', avoid: Array(13).fill('Why?') }), JSON.stringify({ caption: '', avoid: ['x'.repeat(161)] })]) {
+    assert.throws(() => validatePhotoInput(bad), { code: 'INVALID_INPUT' }, bad);
+  }
+  assert.deepEqual(JSON.parse(validatePhotoOutput(JSON.stringify(questions))), questions);
+  // Duplicates across groups are dropped, never shown twice.
+  const repeated = JSON.parse(validatePhotoOutput(JSON.stringify({ ...questions, little: ['What could you hear near the red umbrella?', 'how did you feel as the sun went down?'] })));
+  assert.deepEqual(repeated.little, ['What could you hear near the red umbrella?']);
+  for (const bad of ['', '{}', JSON.stringify({ ...questions, moment: [] }), JSON.stringify({ ...questions, moment: ['a?', 'b?', 'c?', 'd?'] }),
+    JSON.stringify({ ...questions, feeling: ['You felt calm.'] }), JSON.stringify({ ...questions, clear: 'yes' }), JSON.stringify({ ...questions, observations: '' }),
+    JSON.stringify({ ...questions, little: ['x'.repeat(160) + '?'] }), JSON.stringify({ ...questions, extra: 1 })]) {
+    assert.throws(() => validatePhotoOutput(bad), { code: 'INVALID_OUTPUT' }, bad);
+  }
+  assert.deepEqual(photoResponseFormat().json_schema.schema.required, ['observations', 'clear', 'moment', 'feeling', 'little']);
+  assert.match(PHOTO_SYSTEM, /never state or assume what anyone felt/); assert.match(PHOTO_SYSTEM, /Never identify anyone/);
+
+  const { vision, runtime, directory, calls } = await setup(t, { reply: (params) => JSON.stringify(params.history[0].content === PHOTO_SYSTEM ? questions : output) });
+  assert.equal(vision.capability().photoContract, 2); assert.ok(vision.capability().operations.includes(PHOTO_OPERATION));
+  let value = { devices: { phone: { id: 'phone' } }, jobs: {} };
+  const vault = { directory, get value() { return value; }, tail: Promise.resolve(), async change(fn) { const next = structuredClone(value); await fn(next); value = next; } };
+  const jobs = new Jobs(vault, runtime, { assignment: 'writer', capability: () => ({ status: 'unloaded' }) });
+  jobs.vision = vision;
+  const prompt = '{"caption":"Last swim of summer"}', image = selfTestImage().toString('base64');
+  await assert.rejects(jobs.submit('phone', { id: 'photo-job-01', operation: PHOTO_OPERATION, prompt, image }, { image: true }), { code: 'NOT_READY' });
+  await assert.rejects(jobs.submit('phone', { id: 'photo-job-01', operation: PHOTO_OPERATION, prompt }), { code: 'INVALID_INPUT' });
+  await vision.selfTest();
+  jobs.pumping = true;
+  await jobs.submit('phone', { id: 'photo-job-01', operation: PHOTO_OPERATION, prompt, image }, { image: true });
+  assert.equal(JSON.stringify(value).includes(image), false);
+  jobs.pumping = false; await jobs.pump();
+  const done = jobs.get('phone', 'photo-job-01');
+  assert.equal(done.state, 'completed'); assert.deepEqual(JSON.parse(done.text), questions);
+  const request = calls.completion.at(-1);
+  assert.equal(request.history[0].content, PHOTO_SYSTEM);
+  assert.match(request.history[1].content, /own caption \(context from them, not from the photo; use it only for the questions, never in observations\): "Last swim of summer"/);
+  assert.equal(request.responseFormat.json_schema.name, 'journal_diary_photo_v1');
+  assert.equal(calls.load.length, calls.unload);
+  await vision.sweep(value.jobs);
+  assert.deepEqual(await fs.readdir(path.join(directory, 'image-input')), []);
+  // Invalid model output fails the job without a partial result.
+  const bad = await setup(t, { reply: (params) => params.history[0].content === PHOTO_SYSTEM ? '{"observations":"x","clear":true,"moment":["Statement."],"feeling":["a?"],"little":["b?"]}' : JSON.stringify(output) });
+  const failure = await bad.vision.run({ caption: '' }, { type: 'image/png', bytes: selfTestImage() }, { operation: PHOTO_OPERATION });
+  assert.equal(failure.error.code, 'INVALID_OUTPUT');
+});
+
+test('I02 shuffle: questions to avoid reach the model, which samples instead of repeating itself', async (t) => {
+  const { PHOTO_OPERATION } = require('../src/vision.cjs');
+  const reply = { observations: 'A lake.', clear: true, moment: ['Where had you walked from?'], feeling: ['How did the water make you feel?'], little: ['What could you hear?'] };
+  const { vision, calls } = await setup(t, { reply: () => JSON.stringify(reply) });
+  const image = { type: 'image/png', bytes: selfTestImage() };
+  await vision.run({ caption: '' }, image, { operation: PHOTO_OPERATION });
+  assert.deepEqual([calls.completion[0].generationParams.temp, calls.completion[0].generationParams.seed], [0, 42]);
+  const result = await vision.run({ caption: 'Lake day', avoid: ['What led you to the lake?'] }, image, { operation: PHOTO_OPERATION });
+  assert.equal(result.ok, true);
+  const shuffle = calls.completion[1];
+  assert.match(shuffle.history[1].content, /already seen these questions[\s\S]*"What led you to the lake\?"/);
+  assert.equal(shuffle.generationParams.temp, .8);
+});

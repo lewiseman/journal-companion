@@ -20,6 +20,7 @@ const OPERATIONS = {
   'reflect-thought': ['sparkle', PEOPLE, 'Reflecting'],
   'ask-note-image': ['eye', TASKS, 'Looking at a photo'],
   'scan-note-image': ['scan', TASKS, 'Reading a page'],
+  'diary-photo-questions': ['eye', DIARY, 'Asking about a photo'],
   'generate-note-background': ['picture', MOVIES, 'Painting a background'],
   'embed': ['search', TASKS, 'Learning your notes'],
   'voice.transcribe': ['mic', PEOPLE, 'Listening'],
