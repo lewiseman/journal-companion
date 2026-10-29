@@ -1,6 +1,6 @@
-// Released GGUF options selected for a 24 GB Apple Silicon Mac at 4K context.
+// Released GGUF options for Apple Silicon at 4K context, including heavy experiments.
 // Exact publisher/converter metadata checked 2026-10-27 (coding: 2026-10-28);
-// no weights bundled.
+// heavy additions: 2026-10-29. No weights bundled.
 module.exports = Object.freeze([{
   id: 'llama-3.2-3b-instruct-q4_k_m@5ab33fa94d1d04e903623ae72c95d1696f09f9e8',
   name: 'Llama 3.2 · 3B Instruct', collection: 'Popular', tier: 'Compact general writing',
@@ -48,9 +48,9 @@ module.exports = Object.freeze([{
   revision: '7ff82c2aaa4dde30121698a973765f39be5288c0', license: 'MIT',
 }, {
   id: 'phi-4-14b-q4_k@6edc2ef6664b739a8e11e62f2672ff6afe0c15ac',
-  name: 'Phi-4 · 14B', collection: 'Popular', tier: 'Largest writing option', quantization: 'Q4_K',
+  name: 'Phi-4 · 14B', collection: 'Popular', tier: 'Dense 14B writing', quantization: 'Q4_K',
   description: 'Microsoft’s 14B model for a higher-capacity comparison. A larger download with slower generation expected.',
-  memoryGB: 24, fitHint: 'The largest option here. Close memory-heavy apps when using it on a 24 GB Mac.',
+  memoryGB: 24, fitHint: 'Close memory-heavy apps when using it on a 24 GB Mac.',
   origin: 'Microsoft / Hugging Face', repository: 'microsoft/phi-4-gguf',
   filename: 'phi-4-Q4_K.gguf', bytes: 9053114560,
   sha256: '5652b9be0ea4ae2842130d04fe31bc869fcb99a2b7106c53b4e754a343fd688f',
@@ -136,6 +136,69 @@ module.exports = Object.freeze([{
   filename: 'SmolLM3-3B-Q4_K_M.gguf', bytes: 1915306528,
   sha256: '4de907d2d388a5508fb7cb443a06effe14cce3518b0a78d3bdd9e74d9edce989',
   revision: 'a7bc17204c8a326d6bd6e466e076959eddae2025', license: 'Apache 2.0',
+}, {
+  id: 'qwen3-14b-q4_k_m@a04a82c4739b3ef5fa6da7d10261db2c67dd1985',
+  name: 'Qwen3 · 14B', collection: 'Heavy', tier: 'Dense 14B comparison', reasoningBudget: 0,
+  description: 'A larger dense Qwen model for comparing writing quality and response speed with the compact choices. Configured for direct answers.',
+  memoryGB: 24, fitHint: 'A first heavy comparison on a 24 GB Mac. Leave room for macOS and close memory-heavy apps.',
+  origin: 'Qwen / Unsloth / Hugging Face', repository: 'unsloth/Qwen3-14B-GGUF',
+  filename: 'Qwen3-14B-Q4_K_M.gguf', bytes: 9001753984,
+  sha256: '5eaa0870bd81ed3b58a630a271234cfa604e43ffb3a19cd68e54a80dd9d52a66',
+  revision: 'a04a82c4739b3ef5fa6da7d10261db2c67dd1985', license: 'Apache 2.0',
+}, {
+  id: 'qwen3-32b-q4_k_m@931c84066f88693a02ab8de820cfcd066d913241',
+  name: 'Qwen3 · 32B', collection: 'Heavy', tier: 'Dense 32B stress test', reasoningBudget: 0,
+  description: 'A dense 32B model for testing the cost of more parameters. Expect slower generation and substantial memory use. Configured for direct answers.',
+  memoryGB: 32, fitHint: '32 GB or more suggested. This 19.8 GB file may fail to load or cause swapping on a 24 GB Mac.',
+  origin: 'Qwen / Unsloth / Hugging Face', repository: 'unsloth/Qwen3-32B-GGUF',
+  filename: 'Qwen3-32B-Q4_K_M.gguf', bytes: 19762150048,
+  sha256: '8df67573b2c23484e02ec7af295e39bed7ee774f3771d5fda2978265b59370e7',
+  revision: '931c84066f88693a02ab8de820cfcd066d913241', license: 'Apache 2.0',
+}, {
+  id: 'qwen3-30b-a3b-instruct-2507-q4_k_m@eea7b2be5805a5f151f8847ede8e5f9a9284bf77',
+  name: 'Qwen3 · 30B A3B Instruct 2507', collection: 'Heavy', tier: 'Large mixture of experts',
+  description: 'A general instruction model with about 3B active parameters per token. Compare its speed with dense models; all 30B parameters still need memory.',
+  memoryGB: 24, fitHint: 'An 18.6 GB file at the edge of a 24 GB Mac. Quit other apps; loading can fail under memory pressure.',
+  origin: 'Qwen / Unsloth / Hugging Face', repository: 'unsloth/Qwen3-30B-A3B-Instruct-2507-GGUF',
+  filename: 'Qwen3-30B-A3B-Instruct-2507-Q4_K_M.gguf', bytes: 18556686752,
+  sha256: '6c997b8af17debdfb01d890214400ccbab00db6acc0ba8da5de1cc906c4774d0',
+  revision: 'eea7b2be5805a5f151f8847ede8e5f9a9284bf77', license: 'Apache 2.0',
+}, {
+  id: 'qwen3.5-27b-q4_k_m@3221f178a6b842d04f1fb42f1c413534adcc0a6a',
+  name: 'Qwen3.5 · 27B', collection: 'Heavy', tier: 'Dense hybrid 27B comparison', reasoningBudget: 0,
+  description: 'A larger Qwen3.5 hybrid model for comparing writing quality and latency. Configured for direct answers. Text use only.',
+  memoryGB: 24, fitHint: 'A 16.7 GB file with limited headroom on a 24 GB Mac. Close other apps; loading may fail.',
+  origin: 'Qwen / Unsloth / Hugging Face', repository: 'unsloth/Qwen3.5-27B-GGUF',
+  filename: 'Qwen3.5-27B-Q4_K_M.gguf', bytes: 16740812704,
+  sha256: '84b5f7f112156d63836a01a69dc3f11a6ba63b10a23b8ca7a7efaf52d5a2d806',
+  revision: '3221f178a6b842d04f1fb42f1c413534adcc0a6a', license: 'Apache 2.0',
+}, {
+  id: 'qwen3.5-35b-a3b-q4_k_m@bc014a17be43adabd7066b7a86075ff935c6a4e2',
+  name: 'Qwen3.5 · 35B A3B', collection: 'Heavy', tier: 'Largest mixture of experts', reasoningBudget: 0,
+  description: 'A hybrid mixture-of-experts model with about 3B active parameters per token. Configured for direct answers. Text use only.',
+  memoryGB: 32, fitHint: '32 GB or more suggested. The 22 GB weights leave too little room for normal use on a 24 GB Mac; expect loading failures or swapping.',
+  origin: 'Qwen / Unsloth / Hugging Face', repository: 'unsloth/Qwen3.5-35B-A3B-GGUF',
+  filename: 'Qwen3.5-35B-A3B-Q4_K_M.gguf', bytes: 22016023168,
+  sha256: '3b46d1066bc91cc2d613e3bc22ce691dd77e6f0d33c9060690d24ce6de494375',
+  revision: 'bc014a17be43adabd7066b7a86075ff935c6a4e2', license: 'Apache 2.0',
+}, {
+  id: 'gemma-3-27b-it-q4_k_m@f94c25afed0072339c5fa3b705a7b4222afe5f62',
+  name: 'Gemma 3 · 27B Instruct', collection: 'Heavy', tier: 'Dense Gemma 27B comparison',
+  description: 'The larger Gemma 3 instruction model for comparing prose, summaries and editing with the 4B and 12B choices. Text use only.',
+  memoryGB: 24, fitHint: 'A 16.5 GB file with limited headroom on a 24 GB Mac. Close other apps; loading may fail.',
+  origin: 'Google / ggml-org / Hugging Face', repository: 'ggml-org/gemma-3-27b-it-GGUF',
+  filename: 'gemma-3-27b-it-Q4_K_M.gguf', bytes: 16546404736,
+  sha256: 'edc9aff4d811a285b9157618130b08688b0768d94ee5355b02dc0cb713012e15',
+  revision: 'f94c25afed0072339c5fa3b705a7b4222afe5f62', license: 'Gemma Terms of Use',
+}, {
+  id: 'mistral-small-3.2-24b-instruct-2506-q4_k_m@b3592d09be469bedab6be51f577824b3b6b76ba1',
+  name: 'Mistral Small 3.2 · 24B Instruct', collection: 'Heavy', tier: 'Dense Mistral 24B comparison',
+  description: 'A larger Mistral instruction model for comparing writing and instruction following against the smaller Mistral models. Text use only.',
+  memoryGB: 24, fitHint: 'A 14.3 GB file. Close memory-heavy apps on a 24 GB Mac and allow extra load time.',
+  origin: 'Mistral AI / Bartowski / Hugging Face', repository: 'bartowski/mistralai_Mistral-Small-3.2-24B-Instruct-2506-GGUF',
+  filename: 'mistralai_Mistral-Small-3.2-24B-Instruct-2506-Q4_K_M.gguf', bytes: 14333915264,
+  sha256: '80f5bda68f156f12650ca03a0a2dbfae06a215ac41caa773b8631a479f82415e',
+  revision: 'b3592d09be469bedab6be51f577824b3b6b76ba1', license: 'Apache 2.0',
 }, {
   recommended: true, id: 'qwen2.5-coder-7b-instruct-q4_k_m@1f629da0c8bed16b9e50cee91c70693650e66c35',
   name: 'Qwen2.5-Coder · 7B Instruct', collection: 'Coding', tier: 'Compact coding model',

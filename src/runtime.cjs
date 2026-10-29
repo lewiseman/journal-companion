@@ -106,12 +106,7 @@ class Runtime extends EventEmitter {
     this.update({ status: 'loading', detail: 'Checking the complete model file…', error: null, progress: null });
     await this.verifyFile(this.file, () => {}, this.model);
     this.update({ detail: 'Loading the model into memory. This can take a moment.' });
-    const sdk = await this.getSdk();
-    this.modelId = await bounded(sdk.loadModel({
-      modelSrc: this.file, modelType: 'llamacpp-completion', seed: false,
-      modelConfig: { ctx_size: 4096, device: 'gpu', predict: 192, verbosity: 0,
-        ...(this.model.reasoningBudget === 0 ? { reasoning_budget: 0 } : {}) },
-    }));
+    this.modelId = await this.loadText(this.file, this.model);
     this.update({ status: 'ready', detail: 'Ready for a local text request. No internet needed.', selected: true, error: null });
     return { ok: true };
   }
@@ -175,6 +170,8 @@ class Runtime extends EventEmitter {
       if (!this.modelId || this.state.status !== 'ready') throw new CompanionError('NOT_READY', 'Load the model before sending a request.');
       this.cancelRequested = false;
       this.update({ status: 'working', detail: 'Writing on this Mac…', error: null });
+      const measuring = !job && operation === 'text';
+      const started = performance.now();
       const run = this.sdk.completion({
         modelId: this.modelId, history: conversation ? conversationMessages(prompt) : [
           { role: 'system', content: reflection ? REFLECTION_SYSTEM : conversation ? CONVERSATION_SYSTEM : history ? HISTORY_SYSTEM : noteQuestion ? questionSystem(operation) : question ? QUESTION_SYSTEM : diary ? DIARY_SYSTEM : presentation ? PRESENTATION_SYSTEM : transform ? transformSystem(operation) : summary ? SUMMARY_SYSTEM : 'You are a helpful writing assistant. Give a brief, clear answer.' },
@@ -187,11 +184,12 @@ class Runtime extends EventEmitter {
           ...(this.model.reasoningBudget === 0 ? { reasoning_budget: 0 } : {}) },
       });
       this.activeRun = run;
-      let text = '', stopReason;
+      let text = '', stopReason, stats, firstTextMs = null;
       try {
         await bounded((async () => {
           for await (const token of run.tokenStream) {
             if (typeof token !== 'string') throw new CompanionError('INVALID_OUTPUT', 'The model returned invalid text.');
+            if (token.length && firstTextMs === null) firstTextMs = performance.now() - started;
             text += token;
             if (boundedText && Buffer.byteLength(text) > limits.outputBytes) {
               await this.cancelGeneration();
@@ -200,8 +198,11 @@ class Runtime extends EventEmitter {
             if (onToken) onToken(token); else if (!job) this.emit('token', token);
           }
           await run.text;
-          if (boundedText && run.final) stopReason = (await run.final).stopReason;
-        })());
+          if (run.final && (boundedText || measuring)) {
+            const final = await run.final;
+            stopReason = final.stopReason; stats = final.stats;
+          }
+        })(), measuring && this.model.collection === 'Heavy' ? 180000 : 90000);
       } catch (error) {
         if (error.code === 'INVALID_OUTPUT' || !this.cancelRequested || !this.modelId || this.closed) throw error;
         // Cancellation is routine. Verify the model/worker survived before
@@ -211,14 +212,22 @@ class Runtime extends EventEmitter {
         return { ok: false, error: { code: 'CANCELLED', message: 'Request cancelled.' } };
       }
       this.activeRun = null;
+      const totalMs = performance.now() - started;
       this.update({ status: 'ready', detail: 'Finished locally. You can send another request.' });
+      if (measuring && stopReason === 'cancelled') return { ok: false, error: { code: 'CANCELLED', message: 'Request cancelled.' } };
       if (boundedText) {
         if (stopReason === 'length') return { ok: false, error: { code: 'OUTPUT_LIMIT', message: `The result reached its ${limits.outputTokens}-token limit. No partial result was returned; try a shorter passage.` } };
         if (stopReason === 'cancelled') return { ok: false, error: { code: 'CANCELLED', message: 'Summary cancelled.' } };
         try { text = reflection ? validateReflectionOutput(text) : conversation ? validateConversationOutput(text, prompt) : history ? validateHistoryOutput(text) : noteQuestion ? validateNoteQuestionOutput(text) : question ? validateQuestionOutput(text) : diary ? validateDiaryOutput(text) : presentation ? validatePresentationOutput(text) : transform ? validateTransformOutput(text) : validateSummaryOutput(text); }
         catch (error) { return { ok: false, error: { code: error.code, message: error.message } }; }
       }
-      return { ok: true, text };
+      // Only desktop trials return timings. Use the engine's per-request stats,
+      // never stream chunk counts (one chunk can contain several tokens).
+      const metrics = measuring ? { model: this.model.name, firstTextMs, totalMs, outputLimited: stopReason === 'length' } : null;
+      if (metrics) for (const key of ['tokensPerSecond', 'generatedTokens']) {
+        if (Number.isFinite(stats?.[key]) && stats[key] >= 0) metrics[key] = stats[key];
+      }
+      return { ok: true, text, ...(metrics ? { metrics } : {}) };
     }, { job });
   }
   // One bounded request described by [spec] (limits, system, validateInput/

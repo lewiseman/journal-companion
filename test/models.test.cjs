@@ -14,9 +14,9 @@ async function directory(t) {
 }
 
 test('the offline catalog has distinct immutable publisher artifacts and rejects arbitrary IDs', () => {
-  assert.equal(MODELS.length, 47);
+  assert.equal(MODELS.length, 54);
   assert.equal(new Set(MODELS.map((model) => model.id)).size, MODELS.length);
-  assert.equal(MODELS.filter((model) => model.capability === 'text').length, 24);
+  assert.equal(MODELS.filter((model) => model.capability === 'text').length, 31);
   assert.equal(MODELS.filter((model) => model.capability === 'image').length, 2);
   assert.equal(MODELS.filter((model) => model.capability === 'transcription').length, 10);
   assert.equal(MODELS.filter((model) => model.capability === 'speech').length, 7);
@@ -43,21 +43,40 @@ test('the offline catalog has distinct immutable publisher artifacts and rejects
   assert.throws(() => getModel('https://example.com/untrusted.gguf'), { code: 'INCOMPATIBLE_MODEL' });
 });
 
-test('expanded writing choices cover established and newer families within the 24 GB guidance', () => {
+test('writing choices keep ordinary models bounded and identify heavier experiments', () => {
   const writing = MODELS.filter((model) => model.capability === 'text');
   for (const family of ['Llama', 'Mistral', 'Phi-4', 'Gemma 4', 'Qwen3.5', 'LFM2.5', 'SmolLM3', 'Qwen2.5-Coder', 'Qwen3-Coder', 'gpt-oss']) {
     assert.ok(writing.some((model) => model.name.startsWith(family)), `Missing ${family}`);
   }
-  assert.deepEqual(new Set(writing.map((model) => model.collection)), new Set(['Lightweight', 'Popular', 'New', 'Coding']));
+  assert.deepEqual(new Set(writing.map((model) => model.collection)), new Set(['Lightweight', 'Popular', 'New', 'Coding', 'Heavy']));
   for (const model of writing) {
-    assert.ok(model.memoryGB <= 24);
-    // Only the coding group may use the larger mixture-of-experts files.
-    assert.ok(model.bytes < (model.collection === 'Coding' ? 19e9 : 10e9), 'Keep weight files within the 24 GB catalog bounds');
+    assert.ok(model.memoryGB <= (model.collection === 'Heavy' ? 32 : 24));
+    const maxBytes = model.collection === 'Heavy' ? 23e9 : model.collection === 'Coding' ? 19e9 : 10e9;
+    assert.ok(model.bytes < maxBytes, 'Keep weight files within their catalog group bounds');
     assert.match(model.filename, /\.gguf$/i);
     assert.ok(!/\d+-of-\d+/.test(model.filename), 'Only complete single-file models are supported');
   }
   const files = MODELS.flatMap((model) => artifactParts(model).map((part) => part.filename));
   assert.equal(new Set(files).size, files.length);
+});
+
+test('heavy trials offer dense and mixture-of-experts choices with explicit memory guidance', () => {
+  const heavy = MODELS.filter((model) => model.collection === 'Heavy');
+  assert.equal(heavy.length, 7);
+  for (const family of ['Qwen3 · 14B', 'Qwen3 · 32B', 'Qwen3 · 30B A3B', 'Qwen3.5 · 27B', 'Qwen3.5 · 35B A3B', 'Gemma 3 · 27B', 'Mistral Small 3.2 · 24B']) {
+    assert.ok(heavy.some((model) => model.name.startsWith(family)), `Missing ${family}`);
+  }
+  for (const model of heavy) {
+    assert.equal(model.capability, 'text');
+    assert.equal(model.engine, 'llamacpp-completion');
+    assert.equal(model.quantization, 'Q4_K_M');
+    assert.ok(!model.recommended);
+    assert.match(model.fitHint, /24 GB Mac/);
+    if (model.bytes > 19e9) {
+      assert.equal(model.memoryGB, 32);
+      assert.match(model.fitHint, /32 GB/);
+    }
+  }
 });
 
 test('speech choices cover transcription and read-aloud within the 24 GB guidance', () => {

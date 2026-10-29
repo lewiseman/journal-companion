@@ -86,6 +86,66 @@ test('empty, non-text and oversized UTF-8 requests are rejected before runtime c
   for (const input of ['', '  ', {}, '🦉'.repeat(501)]) assert.throws(() => runtime.generate(input), { code: 'INVALID_INPUT' });
   await runtime.shutdown();
 });
+
+test('desktop trials measure first text and total time using per-request engine token statistics', async (t) => {
+  const runtime = new Runtime(await temporary(t), { checkHost: () => null });
+  t.after(() => runtime.shutdown());
+  runtime.modelId = 'loaded'; runtime.state.status = 'ready';
+  const streamed = [];
+  runtime.on('token', (token) => streamed.push(token));
+  runtime.sdk = {
+    completion: () => ({
+      tokenStream: (async function* () { yield ''; yield 'Several tokens'; yield ' in two chunks.'; })(),
+      text: Promise.resolve('Several tokens in two chunks.'),
+      final: Promise.resolve({ stopReason: 'length', stats: { tokensPerSecond: 27.5, generatedTokens: 8, privateDetail: 'not for IPC' } }),
+    }), unloadModel: async () => {}, close: async () => {},
+  };
+  const result = await runtime.generate('A fixed trial prompt');
+  assert.equal(result.ok, true);
+  assert.equal(result.text, 'Several tokens in two chunks.');
+  assert.deepEqual(streamed, ['', 'Several tokens', ' in two chunks.']);
+  assert.equal(result.metrics.model, runtime.model.name);
+  assert.ok(result.metrics.firstTextMs >= 0);
+  assert.ok(result.metrics.totalMs >= result.metrics.firstTextMs);
+  assert.equal(result.metrics.tokensPerSecond, 27.5);
+  assert.equal(result.metrics.generatedTokens, 8);
+  assert.equal(result.metrics.outputLimited, true);
+  assert.equal(result.metrics.privateDetail, undefined);
+  assert.equal(runtime.snapshot().metrics, undefined);
+  const phone = await runtime.generate('A fixed trial prompt', { job: true });
+  assert.equal(phone.metrics, undefined);
+});
+
+test('trials never invent token rates or first text when the engine does not report them', async (t) => {
+  const runtime = new Runtime(await temporary(t), { checkHost: () => null });
+  t.after(() => runtime.shutdown());
+  runtime.modelId = 'loaded'; runtime.state.status = 'ready';
+  runtime.sdk = {
+    completion: () => ({ tokenStream: (async function* () { yield ''; })(), text: Promise.resolve(''),
+      final: Promise.resolve({ stats: { tokensPerSecond: NaN, generatedTokens: -1 } }) }),
+    unloadModel: async () => {}, close: async () => {},
+  };
+  const result = await runtime.generate('Empty synthetic output');
+  assert.equal(result.metrics.firstTextMs, null);
+  assert.equal(result.metrics.tokensPerSecond, undefined);
+  assert.equal(result.metrics.generatedTokens, undefined);
+  assert.ok(Number.isFinite(result.metrics.totalMs));
+});
+
+test('a cancelled desktop trial returns no success metrics', async (t) => {
+  const runtime = new Runtime(await temporary(t), { checkHost: () => null });
+  t.after(() => runtime.shutdown());
+  runtime.modelId = 'loaded'; runtime.state.status = 'ready';
+  runtime.sdk = {
+    completion: () => ({ tokenStream: (async function* () { yield 'Partial'; })(), text: Promise.resolve('Partial'),
+      final: Promise.resolve({ stopReason: 'cancelled', stats: { tokensPerSecond: 5 } }) }),
+    unloadModel: async () => {}, close: async () => {},
+  };
+  const result = await runtime.generate('Cancelled synthetic trial');
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, 'CANCELLED');
+  assert.equal(result.metrics, undefined);
+});
 test('unload releases the model and closes SDK; shutdown remains idempotent', async (t) => {
   const runtime = new Runtime(await temporary(t));
   const unloaded = [];

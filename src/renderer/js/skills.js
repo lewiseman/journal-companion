@@ -42,7 +42,7 @@ const SKILLS = [
   {
     key: 'writing', name: 'Writing', icon: 'pen', accent: '#8265B0', line: 'Notes, diary help and ideas.',
     list: (s) => models(s).filter((m) => m.capability === 'text' && m.collection !== 'Coding'),
-    groups: [['Popular', 'Popular'], ['New', 'Newer'], ['Lightweight', 'Small & quick']],
+    groups: [['Heavy', 'Heavy · performance testing'], ['Popular', 'Popular'], ['New', 'Newer'], ['Lightweight', 'Small & quick']],
     current: (s) => models(s).find((m) => m.id === s.model?.id) || pick(SKILLS[0].list(s)),
     view(s) {
       const current = this.current(s), installed = lib(s).model?.installed;
@@ -180,28 +180,52 @@ const SKILLS = [
 
 /* ── Writing playground (keeps the ids the D01 verification drives) ───────── */
 const IDEAS = ['Three gentle prompts for a busy evening', 'A kind note to my future self', 'One question to start my diary'];
+const SPEED_PROMPT = 'Write about 120 words describing a quiet morning walk. Use concrete details and a calm tone.';
 function playground() {
   const prompt = h('textarea', { id: 'prompt', maxlength: '1800', 'aria-label': 'Ask the writing brain' });
   const generate = h('button', { id: 'generate', type: 'submit', class: 'round-btn yes', 'aria-label': 'Write', disabled: true }, icon('arrow'));
   const form = h('form', { id: 'prompt-form', class: 'play-form' }, prompt, generate);
   const response = h('div', { id: 'response', class: 'response empty', 'aria-live': 'polite' });
+  const timing = h('p', { id: 'response-timing', class: 'trial-timing', role: 'status', hidden: true });
+  const trials = [];
+  const trialBody = h('tbody');
+  const comparison = h('div', { class: 'trial-comparison', hidden: true },
+    h('table', {}, h('caption', { text: 'Recent speed trials · this session' }),
+      h('thead', {}, h('tr', {}, ['Model', 'First text', 'Total', 'Tokens/s', 'Tokens'].map((label) => h('th', { scope: 'col', text: label })))), trialBody),
+    h('p', { class: 'model-desc', text: 'For a fair comparison, use the same prompt and close memory-heavy apps. Timings exclude model loading; tokens/s comes from the engine. Recent trials clear when the app closes.' }));
+  const seconds = (ms) => Number.isFinite(ms) ? `${(ms / 1000).toFixed(2)} s` : '—';
   const clear = h('button', { id: 'clear', class: 'link-btn', type: 'button' }, icon('refresh'), h('span', { text: 'Clear' }));
   const ideas = h('div', { class: 'ideas' }, IDEAS.map((idea) => h('button', { type: 'button', class: 'idea hand', text: idea, onclick: () => { prompt.value = idea; prompt.focus(); } })));
+  ideas.append(softBtn('spark', 'Compare speed', () => { prompt.value = SPEED_PROMPT; prompt.focus(); }));
   let pending = false;
-  clear.onclick = () => { prompt.value = ''; response.textContent = ''; response.classList.add('empty'); };
+  clear.onclick = () => {
+    prompt.value = ''; response.textContent = ''; response.classList.add('empty');
+    timing.textContent = ''; timing.hidden = true;
+    trials.length = 0; trialBody.replaceChildren(); comparison.hidden = true;
+  };
   form.onsubmit = async (event) => {
     event.preventDefault();
     if (store.state?.status !== 'ready' || pending) return;
     const text = prompt.value;
     if (!text.trim() || new TextEncoder().encode(text).length > 2000) { toast('Write a short request first.', 'pen'); return; }
     pending = true; generate.disabled = true;
+    timing.textContent = 'Measuring this response…'; timing.hidden = false;
     response.textContent = ''; response.classList.remove('empty');
     const result = await act(() => c().generate(text));
     if (result?.ok && !response.textContent) response.textContent = result.text || 'Nothing came back. Try another request.';
+    if (result?.ok && result.metrics) {
+      const m = result.metrics;
+      timing.textContent = `First text ${seconds(m.firstTextMs)} · Total ${seconds(m.totalMs)}${Number.isFinite(m.tokensPerSecond) ? ` · ${m.tokensPerSecond.toFixed(1)} tokens/s` : ''}${m.outputLimited ? ' · Output limit reached' : ''}`;
+      trials.unshift(m); trials.splice(6);
+      trialBody.replaceChildren(...trials.map((trial) => h('tr', {},
+        h('th', { scope: 'row', text: `${trial.model}${trial.outputLimited ? ' · output limit' : ''}` }),
+        ...[seconds(trial.firstTextMs), seconds(trial.totalMs), trial.tokensPerSecond?.toFixed(1) ?? '—', trial.generatedTokens ?? '—'].map((value) => h('td', { text: String(value) })))));
+      comparison.hidden = false;
+    } else { timing.textContent = 'Trial did not finish. No timing was recorded.'; }
     pending = false; publish();
   };
   window.companion.onToken((token) => { response.classList.remove('empty'); response.textContent += token; });
-  const el = h('div', { class: 'playground', hidden: true }, ideas, form, h('div', { class: 'response-wrap' }, response, clear));
+  const el = h('div', { class: 'playground', hidden: true }, ideas, form, timing, h('div', { class: 'response-wrap' }, response, clear), comparison);
   return { el, render(state) { generate.disabled = state.status !== 'ready' || pending; prompt.disabled = state.status === 'working'; clear.disabled = state.status === 'working'; } };
 }
 
@@ -234,9 +258,10 @@ function drawer() {
       m.recommended && h('span', { class: 'washi', text: 'Our pick' }),
       h('div', { class: 'model-top' }, h('strong', { text: m.name }), m.tier && h('span', { class: 'model-tier', text: m.tier })),
       h('p', { class: 'model-desc', text: m.description || '' }),
+      m.fitHint && h('p', { class: 'model-fit', text: m.fitHint }),
       h('div', { class: 'chips' },
         h('span', { class: 'chip' }, icon('download'), h('span', { text: formatSize(m.bytes) })),
-        h('span', { class: `chip ${fits ? 'good' : 'warn'}` }, icon(fits ? 'check' : 'alert'), h('span', { text: `${m.memoryGB} GB memory` })),
+        h('span', { class: `chip ${fits ? 'good' : 'warn'}` }, icon(fits ? 'check' : 'alert'), h('span', { text: `${m.memoryGB} GB+ suggested` })),
         m.installed && h('span', { class: 'chip good' }, icon('check'), h('span', { text: 'On this Mac' })),
         h('button', { class: 'chip chip-link', title: m.license, onclick: () => act(() => c().catalog(m.id)) }, icon('external'), h('span', { text: m.license }))),
       pct !== null && pct !== undefined ? h('div', { class: 'model-progress' },
@@ -252,7 +277,8 @@ function drawer() {
     sig = next;
     const groups = skill.groups || [[null, null]];
     body.replaceChildren(...groups.map(([collection, label]) => {
-      const items = list.filter((m) => !collection || m.collection === collection).sort((a, b) => (b.recommended ? 1 : 0) - (a.recommended ? 1 : 0));
+      const items = list.filter((m) => !collection || m.collection === collection).sort((a, b) =>
+        (b.recommended ? 1 : 0) - (a.recommended ? 1 : 0) || (collection === 'Heavy' ? a.bytes - b.bytes : 0));
       return items.length && h('section', { class: 'drawer-group' }, label && h('p', { class: 'eyebrow', text: label }), items.map((m) => modelCard(m, state)));
     }).filter(Boolean));
     const cancel = softBtn('cross', 'Stop download', async () => { await act(() => c().cancelDownload()); await refresh(); });

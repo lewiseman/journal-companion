@@ -1,12 +1,12 @@
 # Local model choices
 
-The desktop model card has a **Choose a model** dropdown with **24 writing models**, grouped into **popular choices**, **newer & interesting**, **coding & HTML**, and **lightweight**. Ten **Speech to text · download only** and seven **Text to speech · download only** options sit beside the two **Image generation · download only** options. Browsing never starts a download or changes the running model. For writing models, **Download & use** installs and loads the choice; **Use downloaded model** switches to installed weights without network access. Image and speech entries offer **Download** without changing the writing selection. The Models & capabilities panel also offers download without loading, cancellation, removal of the active owned writing model after unloading, and a link to the selected publisher/converter's files and license.
+Open **Skills → Writing → Choose another** for **31 text models** across **Heavy · performance testing**, **Popular**, **Newer** and **Small & quick**; the four coding choices are under **Websites → Choose another**. Browsing never starts a download or changes the running model. **Get it** downloads and loads a writing model, **Download only** saves it for later, and **Use** switches to installed weights. Each card shows the pinned download size, suggested system memory, fit guidance and publisher license. Image, speech, vision and search choices remain available in their own skills.
 
 ## Choosing for an M5 MacBook Pro with 24 GB memory
 
-These are released, downloadable models, including newer families to explore. For a first comparison, Qwen3 4B Instruct 2507 is a compact direct-answer option; Llama 3.1 8B and Qwen3.5 9B are middle-sized choices; Gemma 3 12B and Mistral NeMo 12B offer a larger-capacity comparison. Phi-4 14B is the largest choice here. These are size-based starting suggestions, not benchmark rankings.
+These are released, downloadable models, including newer families to explore. For a first comparison, Qwen3 4B Instruct 2507 is a compact direct-answer option; Llama 3.1 8B and Qwen3.5 9B are middle-sized choices; Gemma 3 12B and Mistral NeMo 12B offer a larger-capacity comparison. Phi-4 14B and Qwen3 14B offer a dense 14B comparison. The Heavy group extends this to dense 24–32B models and 30–35B mixtures of experts. These are size-based starting suggestions, not benchmark rankings.
 
-All writing files are below 10 GB and use 4-bit quantization. A 24 GB Mac still needs room for macOS, other apps, the runtime and its inference cache. The app keeps a 4,096-token context rather than allocating the models' advertised maximum contexts. Close memory-heavy apps for the 12–14B choices. Memory suggestions are advisory, and actual fit is confirmed only by a successful load; no speed or quality benchmark is claimed.
+Ordinary writing choices stay below 10 GB. Coding and Heavy experiments extend to 22.02 GB; all Heavy entries use Q4_K_M quantization. A 24 GB Mac still needs room for macOS, other apps, the runtime and its inference cache. The app keeps a 4,096-token context rather than allocating the models' advertised maximum contexts. Close memory-heavy apps for the 12–14B choices. Memory suggestions are advisory, and actual fit is confirmed only by a successful load; no speed or quality benchmark is claimed.
 
 ## Writing · popular choices
 
@@ -44,7 +44,27 @@ Gemma E2B/E4B names describe effective compute, not total resident weights. The 
 | gpt-oss 20B MXFP4 | 12.11 GB | 24 GB+ | Apache 2.0 |
 | Qwen3-Coder 30B A3B Instruct Q4_K_M | 18.56 GB | 24 GB+ | Apache 2.0 |
 
-These are coding-tuned choices for simple, self-contained HTML and CSS. Choose one under **Note websites** to build the websites phones ask for: for each request the writing model is unloaded, the coding model loads and builds the page, and the writing model loads again (each file's checksum is verified once, then reused while the file is unchanged). Every other request keeps using the writing model; with no coding model chosen, websites use the writing model too. They are the only writing files allowed above 10 GB. gpt-oss and Qwen3-Coder are mixture-of-experts models: only a few billion parameters are active per token, so they generate quickly, but the whole file must still fit in memory. Qwen3-Coder 30B is at the edge of a 24 GB Mac, because macOS normally leaves only part of unified memory to the GPU; quit other apps before loading it and expect that it may fail under memory pressure. gpt-oss uses `reasoning_budget: 0` for direct answers like the other reasoning-capable choices. The `qwen3moe` and `gpt-oss` architecture names were found in the installed native runtime; output quality and fit still need the user's native testing.
+These are coding-tuned choices for simple, self-contained HTML and CSS. Choose one under **Note websites** to build the websites phones ask for: for each request the writing model is unloaded, the coding model loads and builds the page, and the writing model loads again (each file's checksum is verified once, then reused while the file is unchanged). Every other request keeps using the writing model; with no coding model chosen, websites use the writing model too. Coding and Heavy groups allow text files above 10 GB. gpt-oss and Qwen3-Coder are mixture-of-experts models: only a few billion parameters are active per token, so they generate quickly, but the whole file must still fit in memory. Qwen3-Coder 30B is at the edge of a 24 GB Mac, because macOS normally leaves only part of unified memory to the GPU; quit other apps before loading it and expect that it may fail under memory pressure. gpt-oss uses `reasoning_budget: 0` for direct answers like the other reasoning-capable choices. The `qwen3moe` and `gpt-oss` architecture names were found in the installed native runtime; output quality and fit still need the user's native testing.
+
+## Writing · heavy performance testing
+
+| Option (Q4_K_M) | Download | Suggested system memory | License |
+| --- | ---: | --- | --- |
+| Qwen3 14B | 9.00 GB | 24 GB+ | Apache 2.0 |
+| Mistral Small 3.2 24B Instruct | 14.33 GB | 24 GB+ | Apache 2.0 |
+| Gemma 3 27B Instruct | 16.55 GB | 24 GB+ | Gemma Terms of Use |
+| Qwen3.5 27B | 16.74 GB | 24 GB+ | Apache 2.0 |
+| Qwen3 30B A3B Instruct 2507 | 18.56 GB | 24 GB+ | Apache 2.0 |
+| Qwen3 32B | 19.76 GB | 32 GB+ | Apache 2.0 |
+| Qwen3.5 35B A3B | 22.02 GB | 32 GB+ | Apache 2.0 |
+
+Start with Qwen3 14B, then compare Mistral Small 24B and a 27B choice. A3B indicates roughly 3B active parameters per token, while the full weight file still needs memory. The 16–19 GB choices have limited headroom on a 24 GB Mac; the 19.76 GB and 22.02 GB options suggest 32 GB or more. Guidance is advisory, and every choice remains selectable for experiments. Quit memory-heavy apps before loading; loading can fail or macOS can swap. Multimodal models are used for text only. Qwen3 14B/32B and Qwen3.5 use `reasoning_budget: 0`; the 30B Instruct 2507 variant is designed for direct answers.
+
+Under **Writing → Try it**, click **Compare speed** to fill the same short writing prompt, then send it. Each successful response records the selected model, time to first nonempty text, total response time, and the engine's per-request tokens/s and generated token count when provided. Missing statistics display as a dash; stream chunks are never counted as tokens. The last six successful trials stay in memory across model switches, and **Clear** removes them. No prompts or trial history are persisted. The latest timing notes when output reaches the 192-token cap. Use the same prompt and comparable background app load for each trial; generation is seeded but sampling and actual output lengths can differ. These are local interactive comparisons, not published benchmark rankings.
+
+First-text and total timings use a monotonic clock in the desktop main process and include request processing, but exclude model verification/loading. Text loads allow up to 180 seconds after checksum verification; Heavy desktop trials allow 180 seconds to complete. Existing phone operation limits stay unchanged. Engine-reported tokens/s measures native generation and can differ from whole-response throughput.
+
+Heavy metadata was verified against the pinned Hugging Face publisher/converter APIs on **2026-10-29**. The installed Apple Silicon llama.cpp binary contains `qwen3`, `qwen3moe`, `qwen35`, `qwen35moe` and `gemma3` architecture names. This establishes architecture availability, not successful native inference for each file; no Heavy weights were downloaded during implementation.
 
 ## Speech to text · download only
 
@@ -127,6 +147,16 @@ Publisher metadata was checked on 2026-10-27:
 - [Qwen2.5-Coder 14B GGUF](https://huggingface.co/bartowski/Qwen2.5-Coder-14B-Instruct-GGUF/tree/5b379ec4bf71bafecb5f9081ad28b19939128988)
 - [gpt-oss 20B GGUF](https://huggingface.co/ggml-org/gpt-oss-20b-GGUF/tree/15dcfc7e7c608c6161507211ed43c5b590801b4b)
 - [Qwen3-Coder 30B A3B GGUF](https://huggingface.co/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF/tree/b17cb02dd882d5b6ab62fc777ad2995f19668350)
+
+Heavy additions verified 2026-10-29:
+
+- [Qwen3-14B-GGUF pinned files](https://huggingface.co/unsloth/Qwen3-14B-GGUF/tree/a04a82c4739b3ef5fa6da7d10261db2c67dd1985)
+- [Qwen3-32B-GGUF pinned files](https://huggingface.co/unsloth/Qwen3-32B-GGUF/tree/931c84066f88693a02ab8de820cfcd066d913241)
+- [Qwen3-30B-A3B-Instruct-2507-GGUF pinned files](https://huggingface.co/unsloth/Qwen3-30B-A3B-Instruct-2507-GGUF/tree/eea7b2be5805a5f151f8847ede8e5f9a9284bf77)
+- [Qwen3.5-27B-GGUF pinned files](https://huggingface.co/unsloth/Qwen3.5-27B-GGUF/tree/3221f178a6b842d04f1fb42f1c413534adcc0a6a)
+- [Qwen3.5-35B-A3B-GGUF pinned files](https://huggingface.co/unsloth/Qwen3.5-35B-A3B-GGUF/tree/bc014a17be43adabd7066b7a86075ff935c6a4e2)
+- [gemma-3-27b-it-GGUF pinned files](https://huggingface.co/ggml-org/gemma-3-27b-it-GGUF/tree/f94c25afed0072339c5fa3b705a7b4222afe5f62)
+- [mistralai_Mistral-Small-3.2-24B-Instruct-2506-GGUF pinned files](https://huggingface.co/bartowski/mistralai_Mistral-Small-3.2-24B-Instruct-2506-GGUF/tree/b3592d09be469bedab6be51f577824b3b6b76ba1)
 
 The exact revisions, sizes and publisher LFS checksums are in `src/model.cjs`, `src/writing-models.cjs` and `src/speech-models.cjs`. A test checks every registry speech pin (path, size, checksum, blob coordinates and engine) against the installed `@qvac/inference` registry. Every added file was matched to metadata from its pinned publisher/converter repository. The newer architecture names (`qwen35`, `gemma4`, `lfm2`, `smollm3`) and established families were found in the installed native runtime; Qwen3.5 and Gemma 4 also appear in the installed QVAC model registry. This establishes available architecture support, not model-specific inference verification. The two diffusion checksums match QVAC 0.22 registry entries. Runtime and worker configuration continue to select only the writing plugin.
 

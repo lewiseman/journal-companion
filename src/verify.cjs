@@ -59,6 +59,25 @@ async function verify({ app, window, runtime, directory, provision, offline }) {
     assert.equal(runtime.state.status, 'ready', JSON.stringify(runtime.state.error));
     report.output = await js('document.getElementById("response").textContent');
     assert.ok(report.output.trim().length > 20); report.checks.realCompletion = true;
+    await waitFor(() => js('document.getElementById("response-timing").textContent.includes("Total")'));
+    report.trialTiming = await js('document.getElementById("response-timing").textContent');
+    assert.match(report.trialTiming, /First text [\d.]+ s · Total [\d.]+ s · [\d.]+ tokens\/s/);
+    assert.equal(await js('document.querySelectorAll(".trial-comparison tbody tr").length'), 1);
+    report.checks.nativeTrialStatistics = true;
+    await js('document.getElementById("book").hidden = true; document.getElementById("app").hidden = false; Array.from(document.querySelectorAll(".tab")).find(tab => tab.textContent === "Skills").click(); Array.from(document.querySelectorAll(".skill-writing .soft-btn")).find(button => button.textContent === "Try it").click()');
+    // Open the real drawer and inspect what the user can choose, without
+    // starting any download or changing the active writing model.
+    await js('document.querySelector(".skill-writing .skill-more button").click()');
+    report.heavyChoices = await js('Array.from(document.querySelector(".drawer-group").querySelectorAll(".model-card")).map(card => ({ name: card.querySelector("strong").textContent, guidance: card.querySelector(".model-fit").textContent, memory: card.querySelector(".chips .chip:nth-child(2)").textContent }))');
+    assert.equal(report.heavyChoices.length, 7);
+    assert.equal(report.heavyChoices.filter((choice) => choice.memory.includes('32 GB')).length, 2);
+    report.checks.heavyPicker = true;
+    // Let the drawer/playground entrance animations finish before capturing.
+    await js('new Promise(resolve => setTimeout(resolve, 600))');
+    await fs.writeFile(path.join(directory, 'heavy-picker.png'), (await window.webContents.capturePage()).toPNG());
+    await js('document.querySelector(".drawer-head button").click()');
+    await js('new Promise(resolve => setTimeout(resolve, 600))');
+    assert.equal(await js('!document.querySelector(".playground").hidden && document.querySelector(".trial-comparison").getBoundingClientRect().height > 0'), true);
     await fs.writeFile(path.join(directory, 'companion.png'), (await window.webContents.capturePage()).toPNG());
     const info = await runtime.sdk.getLoadedModelInfo({ modelId: runtime.modelId });
     report.runtimeInfo = info;
@@ -81,6 +100,8 @@ async function verify({ app, window, runtime, directory, provision, offline }) {
     report.quitWorkerPids = bareChildren();
     await js('document.getElementById("clear").click()');
     report.checks.clear = await js('document.getElementById("prompt").value === "" && document.getElementById("response").classList.contains("empty")');
+    assert.equal(await js('document.getElementById("response-timing").hidden && document.querySelectorAll(".trial-comparison tbody tr").length === 0'), true);
+    report.checks.clearTrials = true;
   } catch (error) {
     report.failure = error.message; throw error;
   } finally {

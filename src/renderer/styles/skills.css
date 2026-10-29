@@ -26,6 +26,14 @@
 .response-wrap { display: flex; align-items: flex-start; gap: 12px; }
 .response { flex: 1; font: 17px/1.75 var(--font-title); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 280px; overflow: auto; user-select: text; }
 .response.empty { display: none; }
+.trial-timing { margin: 0; font-size: 13px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.trial-comparison { overflow-x: auto; }
+.trial-comparison table { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+.trial-comparison caption { text-align: left; font-weight: 600; padding: 8px 0; }
+.trial-comparison th, .trial-comparison td { padding: 8px; text-align: right; border-bottom: 1px solid var(--paper-line); white-space: nowrap; }
+.trial-comparison th:first-child { text-align: left; white-space: normal; }
+.trial-comparison tbody th { font-weight: 400; }
+.trial-comparison p { margin: 10px 0 0; }
 
 /* Drawer */
 .scrim { position: fixed; inset: 0; z-index: 30; background: rgba(23, 21, 29, .3); opacity: 0; pointer-events: none; transition: opacity .3s; }
@@ -49,6 +57,7 @@
 .model-top strong { font-size: 17px; font-weight: 600; }
 .model-tier { font-size: 12px; color: var(--ink-faint); }
 .model-desc { margin: 0; font-size: 13.5px; color: var(--ink-soft); }
+.model-fit { margin: 0; font-size: 12px; color: var(--ink-soft); }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip-link { border: 0; cursor: pointer; max-width: 220px; }
 .chip-link span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
