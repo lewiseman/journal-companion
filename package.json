@@ -18,7 +18,10 @@
     "verify:packaged": "node scripts/verify-packaged.cjs",
     "verify:connection": "node scripts/verify-connection.cjs",
     "prestart": "node scripts/bundle-runtime.cjs",
-    "bundle:runtime": "node scripts/bundle-runtime.cjs"
+    "bundle:runtime": "node scripts/bundle-runtime.cjs",
+    "export:operations": "node scripts/export-operations.cjs",
+    "verify:operations": "node scripts/export-operations.cjs --check",
+    "pretest": "npm run verify:operations"
   },
   "overrides": {
     "zod": "4.6.6"

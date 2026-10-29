@@ -9,6 +9,8 @@ const { bounded, publicError } = require('./runtime.cjs');
 // I06: one optional generated note background. The phone sends only the
 // user's own short description and a light/dark tone; never note text.
 const BACKGROUND_OPERATION = 'generate-note-background';
+// Mobile CPU inference uses a modest portrait preview; prompts and bounds stay shared.
+const BACKGROUND_DEVICE_SETTINGS = Object.freeze({ width: 256, height: 384, steps: 12 });
 const BACKGROUND_LIMITS = { promptChars: 240, outputBytes: 4 * 1024 * 1024, steps: 20, timeoutMs: 300000 };
 // Per-model settings checked on this Mac with QVAC 0.22.0's sdcpp-generation.
 const SETTINGS = {
@@ -165,4 +167,4 @@ class Background extends EventEmitter {
   }
 }
 
-module.exports = { Background, BACKGROUND_OPERATION, BACKGROUND_LIMITS, BACKGROUND_MODELS, validateBackgroundInput, backgroundPrompt, pngSize, NEGATIVE };
+module.exports = { Background, BACKGROUND_OPERATION, BACKGROUND_LIMITS, BACKGROUND_DEVICE_SETTINGS, BACKGROUND_MODELS, validateBackgroundInput, backgroundPrompt, pngSize, NEGATIVE };
