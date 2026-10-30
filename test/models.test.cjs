@@ -14,9 +14,9 @@ async function directory(t) {
 }
 
 test('the offline catalog has distinct immutable publisher artifacts and rejects arbitrary IDs', () => {
-  assert.equal(MODELS.length, 54);
+  assert.equal(MODELS.length, 50);
   assert.equal(new Set(MODELS.map((model) => model.id)).size, MODELS.length);
-  assert.equal(MODELS.filter((model) => model.capability === 'text').length, 31);
+  assert.equal(MODELS.filter((model) => model.capability === 'text').length, 27);
   assert.equal(MODELS.filter((model) => model.capability === 'image').length, 2);
   assert.equal(MODELS.filter((model) => model.capability === 'transcription').length, 10);
   assert.equal(MODELS.filter((model) => model.capability === 'speech').length, 7);
@@ -37,7 +37,7 @@ test('the offline catalog has distinct immutable publisher artifacts and rejects
       continue;
     }
     assert.match(model.revision, /^[a-f0-9]{40}$/);
-    assert.match(model.repository, /^(Qwen|ggml-org|gpustack|bartowski|unsloth|microsoft|LiquidAI|ggerganov)\//);
+    assert.match(model.repository, /^(Qwen|ggml-org|gpustack|bartowski|unsloth|microsoft|LiquidAI|ggerganov|qvac)\//);
   }
   assert.match(MODELS[2].license, /non-commercial/);
   assert.throws(() => getModel('https://example.com/untrusted.gguf'), { code: 'INCOMPATIBLE_MODEL' });
@@ -45,13 +45,14 @@ test('the offline catalog has distinct immutable publisher artifacts and rejects
 
 test('writing choices keep ordinary models bounded and identify heavier experiments', () => {
   const writing = MODELS.filter((model) => model.capability === 'text');
-  for (const family of ['Llama', 'Mistral', 'Phi-4', 'Gemma 4', 'Qwen3.5', 'LFM2.5', 'SmolLM3', 'Qwen2.5-Coder', 'Qwen3-Coder', 'gpt-oss']) {
+  for (const family of ['Llama', 'Mistral', 'Phi-4', 'Gemma 4', 'Qwen3.5', 'LFM2.5', 'SmolLM3']) {
     assert.ok(writing.some((model) => model.name.startsWith(family)), `Missing ${family}`);
   }
-  assert.deepEqual(new Set(writing.map((model) => model.collection)), new Set(['Lightweight', 'Popular', 'New', 'Coding', 'Heavy']));
+  assert.deepEqual(new Set(writing.map((model) => model.collection)), new Set(['Lightweight', 'Popular', 'New', 'Heavy']));
+  assert.ok(!writing.some((model) => /Coder|gpt-oss/.test(model.name)), 'Websites no longer use coding models');
   for (const model of writing) {
     assert.ok(model.memoryGB <= (model.collection === 'Heavy' ? 32 : 24));
-    const maxBytes = model.collection === 'Heavy' ? 23e9 : model.collection === 'Coding' ? 19e9 : 10e9;
+    const maxBytes = model.collection === 'Heavy' ? 23e9 : 10e9;
     assert.ok(model.bytes < maxBytes, 'Keep weight files within their catalog group bounds');
     assert.match(model.filename, /\.gguf$/i);
     assert.ok(!/\d+-of-\d+/.test(model.filename), 'Only complete single-file models are supported');

@@ -169,7 +169,7 @@ class Jobs extends EventEmitter {
           if (result.ok && job.operation === HISTORY_OPERATION) result.text = validateHistoryOutput(result.text);
           if (result.ok && QUESTION_OPERATIONS.includes(job.operation)) result.text = validateNoteQuestionOutput(result.text);
           if (result.ok && job.operation === REFLECTION_OPERATION) result.text = validateReflectionOutput(result.text);
-          if (result.ok && Object.hasOwn(NOTE_HELP, job.operation)) result.text = NOTE_HELP[job.operation].validateOutput(result.text);
+          if (result.ok && Object.hasOwn(NOTE_HELP, job.operation)) result.text = NOTE_HELP[job.operation].validateOutput(result.text, job.prompt);
         }
         catch (error) { result = { ok: false, error: { code: ['INVALID_OUTPUT', 'IMAGE_MISSING'].includes(error.code) ? error.code : 'RUNTIME_FAILED' } }; }
         await this.vault.change((data) => {

@@ -3,126 +3,119 @@ const assert = require('node:assert/strict');
 const os = require('node:os');
 const path = require('node:path');
 const fs = require('node:fs/promises');
-const { WEBSITE_OPERATION, validateWebsiteInput, validateWebsiteOutput } = require('../src/website.cjs');
 const { Runtime } = require('../src/runtime.cjs');
 
 const note = { title: 'Garden plan', text: 'Tomatoes in the raised bed.\n- Water daily', description: 'A calm green one-page site' };
-const page = '<!doctype html><html><head><style>body{font-family:system-ui;background:linear-gradient(#efe,#fff)}</style></head><body><h1>Garden plan</h1></body></html>';
 
-test('website input is one bounded note and a one-line description', () => {
-  assert.deepEqual(validateWebsiteInput(JSON.stringify(note)), note);
-  assert.equal(validateWebsiteInput(JSON.stringify({ ...note, title: '' })).title, '');
-  for (const invalid of [
-    { ...note, text: '' }, { ...note, description: '' }, { ...note, description: 'x'.repeat(241) }, { ...note, description: 'a\nb' },
-    { ...note, text: 'x'.repeat(2001) }, { ...note, uuid: 'private' }, { text: 'x', description: 'y' },
-  ]) assert.throws(() => validateWebsiteInput(JSON.stringify(invalid)), { code: 'INVALID_INPUT' }, JSON.stringify(invalid).slice(0, 60));
-});
-
-test('website output is one self-contained page without scripts or remote resources', () => {
-  assert.equal(validateWebsiteOutput(page), page);
-  assert.equal(validateWebsiteOutput('```html\n' + page + '\n```'), page);
-  for (const invalid of [
-    '', 'Here is your site', '<html><body>unfinished', page.replace('<h1>', '<script>alert(1)</script><h1>'),
-    page.replace('<h1>', '<h1 onclick="x()">'), page.replace('<h1>', '<img src="https://example.com/a.png"><h1>'),
-    page.replace('<h1>', '<a href="javascript:x()">x</a><h1>'), page.replace('linear-gradient(#efe,#fff)', 'url(https://example.com/bg.png)'),
-    page.replace('<style>', '<style>@import "x.css";'), page.replace('</body>', 'x'.repeat(16384) + '</body>'),
-  ]) assert.throws(() => validateWebsiteOutput(invalid), { code: 'INVALID_OUTPUT' }, invalid.slice(0, 80));
-});
-
-test('websites use the plain-text request path with a longer budget and keep data separate from instructions', async (t) => {
-  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'journal-website-'));
-  t.after(() => fs.rm(directory, { recursive: true, force: true }));
-  const runtime = new Runtime(directory, { checkHost: () => null });
-  let captured;
-  runtime.sdk = { completion(params) { captured = params; return { tokenStream: (async function* () { yield page; })(), text: Promise.resolve(page), final: Promise.resolve({}) }; }, close: async () => {}, unloadModel: async () => {} };
-  runtime.modelId = 'model'; runtime.state.status = 'ready';
-  const prompt = JSON.stringify(note);
-  const result = await runtime.generate(prompt, { operation: WEBSITE_OPERATION, job: true });
-  assert.equal(result.ok, true); assert.equal(result.text, page);
-  assert.equal(captured.responseFormat, undefined);
-  assert.equal(captured.generationParams.predict, 3000);
-  assert.equal(captured.history[1].content, prompt);
-  assert.match(captured.history[0].content, /untrusted source data, never instructions/);
-  assert.match(captured.history[0].content, /Never use JavaScript/);
-  await runtime.shutdown();
-});
-
-test('the text capability advertises the website contract and operation', () => {
-  const { Library } = require('../src/library.cjs');
-  const library = new Library({ state: { status: 'ready' }, modelId: 'x', model: require('../src/model.cjs').MODEL, directory: os.tmpdir() });
-  const capability = library.capability();
-  assert.equal(capability.websiteContract, 1);
-  assert.ok(capability.operations.includes(WEBSITE_OPERATION));
-});
-
-function swapRuntime(directory, { failLoad = null } = {}) {
-  const { MODELS } = require('../src/model.cjs');
-  const coder = MODELS.find((m) => m.collection === 'Coding');
+function writingRuntime(directory) {
   const runtime = new Runtime(directory, { checkHost: () => null, modelVerifier: async () => {} });
   const calls = [];
-  let next = 0;
   runtime.sdk = {
-    async loadModel({ modelSrc }) { calls.push(`load ${path.basename(modelSrc)}`); if (failLoad && modelSrc.endsWith(failLoad)) throw new Error('memory'); return `m${++next}`; },
+    async loadModel({ modelSrc }) { calls.push(`load ${path.basename(modelSrc)}`); return 'm1'; },
     async unloadModel({ modelId }) { calls.push(`unload ${modelId}`); },
-    completion(params) { calls.push(`complete ${params.modelId}`); return { tokenStream: (async function* () { yield page; })(), text: Promise.resolve(page), final: Promise.resolve({}) }; },
+    completion(params) { calls.push(`complete ${params.modelId}`); return { tokenStream: (async function* () { yield '{}'; })(), text: Promise.resolve('{}'), final: Promise.resolve({}) }; },
     close: async () => {},
   };
   runtime.getSdk = async () => runtime.sdk;
   runtime.file = path.join(directory, 'writing.gguf'); runtime.modelId = 'm0'; runtime.state.status = 'ready';
-  runtime.codingModel = coder;
-  return { runtime, calls, coder };
+  return { runtime, calls };
 }
 
-test('websites swap in the coding model and restore the writing model', async (t) => {
-  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'journal-website-swap-'));
-  t.after(() => fs.rm(directory, { recursive: true, force: true }));
-  const { runtime, calls, coder } = swapRuntime(directory);
-  const result = await runtime.generate(JSON.stringify(note), { operation: WEBSITE_OPERATION, job: true });
-  assert.equal(result.ok, true);
-  assert.deepEqual(calls, ['unload m0', `load ${coder.filename}`, 'complete m1', 'unload m1', 'load writing.gguf']);
-  assert.equal(runtime.modelId, 'm2'); assert.equal(runtime.state.status, 'ready');
-  // Other requests keep using the writing model without swapping.
-  calls.length = 0;
-  const { METADATA_OPERATION } = require('../src/note-help.cjs');
-  await runtime.generate(JSON.stringify({ title: '', text: 'Seeds', tags: [] }), { operation: METADATA_OPERATION, job: true });
-  assert.deepEqual(calls, ['complete m2']);
+const { DESIGN_OPERATION, DESIGN_THEMES, validateDesignInput, validateDesignOutput, designResponseFormat } = require('../src/website.cjs');
+const design = { ...note, theme: 'garden', photos: 2 };
+const spec = { theme: 'garden', accent: 'forest', hero: { heading: 'Garden plan', tagline: 'Tomatoes in the raised bed.' }, sections: [
+  { kind: 'text', heading: '', body: 'Tomatoes in the raised bed.\nMore soon.', items: [], photo: 0 },
+  { kind: 'list', heading: 'Jobs', body: '', items: [{ title: 'Water daily', text: '' }], photo: -1 },
+] };
+
+test('website design input is a bounded note, a known theme and a photo count', () => {
+  assert.deepEqual(validateDesignInput(JSON.stringify(design)), design);
+  assert.equal(validateDesignInput(JSON.stringify({ ...design, theme: 'auto', photos: 0 })).theme, 'auto');
+  for (const invalid of [
+    { ...design, theme: 'neon' }, { ...design, photos: 7 }, { ...design, photos: -1 }, { ...design, photos: 1.5 }, { ...design, photos: '2' },
+    { ...design, extra: 1 }, note, { ...design, text: '' }, { ...design, description: 'x'.repeat(241) }, { ...design, text: 'x'.repeat(2001) },
+  ]) assert.throws(() => validateDesignInput(JSON.stringify(invalid)), { code: 'INVALID_INPUT' }, JSON.stringify(invalid).slice(0, 60));
 });
 
-test('a coding model that cannot load fails the website and keeps writing ready', async (t) => {
-  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'journal-website-swap-'));
-  t.after(() => fs.rm(directory, { recursive: true, force: true }));
-  const { MODELS } = require('../src/model.cjs');
-  const coder = MODELS.find((m) => m.collection === 'Coding');
-  const { runtime, calls } = swapRuntime(directory, { failLoad: coder.filename });
-  const result = await runtime.generate(JSON.stringify(note), { operation: WEBSITE_OPERATION, job: true });
-  assert.equal(result.ok, false); assert.equal(result.error.code, 'CODING_MODEL_FAILED');
-  assert.match(result.error.message, /could not load/);
-  assert.equal(calls.at(-1), 'load writing.gguf');
-  assert.equal(runtime.modelId, 'm1'); assert.equal(runtime.state.status, 'ready');
+test('the design schema narrows the theme unless auto and bounds the photo index', () => {
+  const fixed = designResponseFormat(JSON.stringify(design)).json_schema;
+  assert.equal(fixed.name, 'journal_website_v2');
+  assert.deepEqual(fixed.schema.properties.theme.enum, ['garden']);
+  assert.deepEqual(fixed.schema.required, ['theme', 'accent', 'hero', 'sections']);
+  assert.equal(fixed.schema.additionalProperties, false);
+  const section = fixed.schema.properties.sections.items;
+  assert.deepEqual([section.properties.photo.minimum, section.properties.photo.maximum], [-1, 1]);
+  assert.equal(fixed.schema.properties.sections.maxItems, 8);
+  const auto = designResponseFormat(JSON.stringify({ ...design, theme: 'auto' })).json_schema;
+  assert.deepEqual(auto.schema.properties.theme.enum, DESIGN_THEMES);
+  assert.throws(() => designResponseFormat(JSON.stringify({ ...design, photos: 9 })), { code: 'INVALID_INPUT' });
 });
 
-test('the coding assignment persists, needs an installed model and is advertised', async (t) => {
-  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'journal-website-lib-'));
+test('website design output is re-checked and re-serialized compactly', () => {
+  const prompt = JSON.stringify(design);
+  assert.equal(validateDesignOutput(JSON.stringify(spec, null, 2), prompt), JSON.stringify(spec));
+  assert.equal(validateDesignOutput('```json\n' + JSON.stringify(spec) + '\n```', prompt), JSON.stringify(spec));
+  assert.equal(validateDesignOutput(JSON.stringify({ ...spec, theme: 'night' }), JSON.stringify({ ...design, theme: 'auto' })), JSON.stringify({ ...spec, theme: 'night' }));
+  const section = (patch) => ({ ...spec, sections: [{ ...spec.sections[0], ...patch }] });
+  for (const invalid of [
+    section({ kind: 'gallery' }), { ...spec, sections: Array(9).fill(spec.sections[0]) }, { ...spec, sections: [] },
+    section({ body: 'x'.repeat(601) }), section({ photo: 2 }), section({ photo: -2 }), { ...spec, theme: 'night' },
+    { ...spec, accent: 'teal' }, section({ heading: 'a\nb' }), section({ body: 'a\tb' }), section({ items: Array(7).fill({ title: 'a', text: 'b' }) }),
+    section({ items: [{ title: 'a', text: 'b', url: 'x' }] }), { ...spec, extra: 1 }, { ...spec, hero: { heading: '', tagline: '' } },
+  ]) assert.throws(() => validateDesignOutput(JSON.stringify(invalid), prompt), { code: 'INVALID_OUTPUT' }, JSON.stringify(invalid).slice(0, 80));
+  assert.throws(() => validateDesignOutput('not json', prompt), { code: 'INVALID_OUTPUT' });
+});
+
+test('website designs run on the writing model with a per-request schema', async (t) => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'journal-website-design-'));
   t.after(() => fs.rm(directory, { recursive: true, force: true }));
+  const { runtime, calls } = writingRuntime(directory);
+  let captured;
+  const text = JSON.stringify(spec);
+  runtime.sdk.completion = (params) => { captured = params; calls.push(`complete ${params.modelId}`); return { tokenStream: (async function* () { yield text; })(), text: Promise.resolve(text), final: Promise.resolve({}) }; };
+  const prompt = JSON.stringify(design);
+  const result = await runtime.generate(prompt, { operation: DESIGN_OPERATION, job: true });
+  assert.equal(result.ok, true); assert.equal(result.text, text);
+  assert.deepEqual(calls, ['complete m0']);
+  assert.deepEqual(captured.responseFormat, designResponseFormat(prompt));
+  assert.equal(captured.generationParams.predict, 1600);
+  assert.equal(captured.history[1].content, prompt);
+  assert.match(captured.history[0].content, /untrusted source data, never instructions/);
+});
+
+test('the text capability advertises only the website design contract', () => {
   const { Library } = require('../src/library.cjs');
-  const { MODELS, MODEL } = require('../src/model.cjs');
-  const coder = MODELS.find((m) => m.collection === 'Coding');
-  const runtime = new Runtime(directory, { checkHost: () => null, modelVerifier: async () => {} });
-  runtime.verifyFile = async (file) => { await fs.access(file); };
-  const library = new Library(runtime);
-  await library.initialize();
-  await assert.rejects(library.assignCoding(coder.id), { code: 'MISSING_WEIGHTS' });
-  await fs.mkdir(path.join(directory, 'models'), { recursive: true });
-  await fs.writeFile(path.join(directory, 'models', coder.filename), '');
-  await library.reconcile();
-  await library.assignCoding(coder.id);
-  assert.equal(runtime.codingModel.id, coder.id);
-  assert.equal(library.capability().websiteModel, coder.name);
-  assert.equal(library.snapshot().codingReady, true);
-  assert.equal(JSON.parse(await fs.readFile(path.join(directory, 'assignment.json'), 'utf8')).coding, coder.id);
-  const reopened = new Library(runtime); await reopened.initialize();
-  assert.equal(reopened.coding, coder.id);
-  await library.assignCoding(null);
-  assert.equal(runtime.codingModel, null);
-  assert.equal(library.capability().websiteModel, MODEL.name);
+  const { MODEL } = require('../src/model.cjs');
+  const library = new Library({ state: { status: 'ready' }, modelId: 'x', model: MODEL, directory: os.tmpdir() });
+  const capability = library.capability();
+  assert.equal(capability.websiteDesignContract, 1);
+  assert.deepEqual(capability.websiteThemes, ['editorial', 'zine', 'garden', 'notebook', 'night', 'postcard']);
+  assert.equal(capability.websiteDesignLimits.outputBytes, 8192);
+  assert.equal(capability.websiteDesignLimits.outputTokens, 1600);
+  assert.equal(capability.websiteDesignLimits.timeoutMs, 300000);
+  assert.equal(capability.websiteModel, MODEL.name);
+  assert.ok(capability.operations.includes(DESIGN_OPERATION));
+  // The freehand page and its coding model are gone.
+  assert.equal(capability.websiteContract, undefined);
+  assert.ok(!capability.operations.includes('present-website'));
+  assert.equal(library.snapshot().coding, undefined);
+});
+
+test('a design-website job completes through Jobs, which re-checks the output with its prompt', async () => {
+  const { Jobs } = require('../src/jobs.cjs');
+  const { DESIGN_OPERATION } = require('../src/website.cjs');
+  let value = { devices: { phone: { id: 'phone' } }, jobs: {} };
+  const vault = { get value() { return value; }, tail: Promise.resolve(), async change(fn) { const next = structuredClone(value); await fn(next); value = next; } };
+  const design = { theme: 'zine', accent: 'sun', hero: { heading: 'Garden plan', tagline: '' },
+    sections: [{ kind: 'text', heading: '', body: 'Tomatoes in the raised bed.', items: [], photo: 0 }] };
+  const runtime = { reserved: false, async generate() { return { ok: true, text: JSON.stringify(design) }; }, async cancelGeneration() {} };
+  const jobs = new Jobs(vault, runtime, { assignment: 'model', capability: () => ({ status: 'ready' }) });
+  await jobs.submit('phone', { id: 'design-job-1', operation: DESIGN_OPERATION, prompt: JSON.stringify({ ...note, theme: 'zine', photos: 1 }) });
+  await jobs.pump();
+  const done = jobs.get('phone', 'design-job-1');
+  assert.equal(done.state, 'completed', done.error); assert.deepEqual(JSON.parse(done.text), design);
+  // A photo the note does not have still fails the job-level check.
+  await jobs.submit('phone', { id: 'design-job-2', operation: DESIGN_OPERATION, prompt: JSON.stringify({ ...note, theme: 'zine', photos: 0 }) });
+  await jobs.pump();
+  assert.equal(jobs.get('phone', 'design-job-2').error, 'INVALID_OUTPUT');
 });

@@ -12,13 +12,13 @@ const { REFLECTION_OPERATION, REFLECTION_LIMITS } = require('./reflection.cjs');
 const { HISTORY_OPERATION, HISTORY_LIMITS } = require('./history.cjs');
 const { QUESTION_OPERATIONS, NOTE_QUESTION_LIMITS } = require('./note-question.cjs');
 const { NOTE_HELP, NOTE_HELP_LIMITS } = require('./note-help.cjs');
-const { WEBSITE_LIMITS } = require('./website.cjs');
+const { DESIGN_LIMITS, DESIGN_THEMES } = require('./website.cjs');
 
 const MODEL_KEY = MODEL.id;
 class Library extends EventEmitter {
   constructor(runtime) {
     super();
-    this.runtime = runtime; this.installed = false; this.owned = false; this.partial = 0; this.assignment = MODEL_KEY; this.coding = null;
+    this.runtime = runtime; this.installed = false; this.owned = false; this.partial = 0; this.assignment = MODEL_KEY;
     this.models = []; this.verified = new Map(); this.download = null; this.downloading = false;
   }
   async initialize() {
@@ -27,7 +27,6 @@ class Library extends EventEmitter {
     try {
       const saved = JSON.parse(await fs.readFile(file, 'utf8'));
       this.assignment = MODELS.some((model) => model.id === saved.text && model.capability === 'text') ? saved.text : null;
-      this.coding = MODELS.some((model) => model.id === saved.coding && model.capability === 'text') ? saved.coding : null;
     } catch (e) {
       if (e.code !== 'ENOENT') this.assignment = null;
       else { this.assignment = this.runtime.model?.capability === 'text' ? this.runtime.model.id : MODEL_KEY; await this.saveAssignment(this.assignment); }
@@ -68,8 +67,6 @@ class Library extends EventEmitter {
     if (model.capability === 'text' && this.assignment && this.assignment !== model.id) {
       await this.saveAssignment(model.id); this.assignment = model.id;
     }
-    // Websites swap in the coding model only while its verified file exists.
-    this.runtime.codingModel = this.coding && this.models.find((entry) => entry.id === this.coding)?.installed ? getModel(this.coding) : null;
   }
   snapshot() {
     const r = this.runtime;
@@ -78,8 +75,7 @@ class Library extends EventEmitter {
       model: { ...model, installed: this.installed,
       partialBytes: this.partial, owned: this.owned, loaded: !!r.modelId, fit: r.modelId ? 'Loaded successfully on this Mac' : 'Unknown until load',
       guidance: `Apple Silicon, macOS 14+. Suggested system memory: ${model.memoryGB} GB or more. Runtime may fail under memory pressure.` },
-      text: this.capability(), download: this.download, assignment: this.assignment,
-      coding: this.coding, codingReady: !!this.runtime.codingModel };
+      text: this.capability(), download: this.download, assignment: this.assignment };
   }
   capability() {
     const r = this.runtime;
@@ -88,25 +84,15 @@ class Library extends EventEmitter {
       : r.audioReserved ? 'busy' : r.busy ? (r.state.status === 'working' ? 'busy' : 'loading') : r.modelId ? 'ready' : !this.installed ? 'needs_download' : 'unloaded';
     return { id: 'text', implemented: true, model: this.assignment, status, reason: !this.assignment ? 'Assign the installed writing model.' : r.state.detail,
       operations: [CONVERSATION_OPERATION, 'text', SUMMARY_OPERATION, ...Object.keys(OPERATIONS), PRESENTATION_OPERATION, DIARY_OPERATION, QUESTION_OPERATION, HISTORY_OPERATION, ...QUESTION_OPERATIONS, ...Object.keys(NOTE_HELP), REFLECTION_OPERATION], summaryLimits: SUMMARY_LIMITS, transformLimits: TRANSFORM_LIMITS, presentationContract: 1, presentationLimits: PRESENTATION_LIMITS, diaryContract: 1, diaryLimits: DIARY_LIMITS, questionContract: 1, questionLimits: QUESTION_LIMITS, historyContract: 1, historyLimits: HISTORY_LIMITS, noteQuestionContract: 1, thoughtQuestionContract: 1, noteQuestionLimits: NOTE_QUESTION_LIMITS, reflectionContract: 1, reflectionLimits: REFLECTION_LIMITS,
-      noteHelpContract: 1, noteHelpLimits: NOTE_HELP_LIMITS, websiteContract: 1, websiteLimits: WEBSITE_LIMITS,
-      websiteModel: (r.codingModel || r.model || MODEL).name };
+      noteHelpContract: 1, noteHelpLimits: NOTE_HELP_LIMITS,
+      websiteDesignContract: 1, websiteThemes: DESIGN_THEMES, websiteDesignLimits: DESIGN_LIMITS,
+      websiteModel: (r.model || MODEL).name };
   }
   async assign(id) {
     if (this.runtime.busy || this.runtime.reserved) throw new CompanionError('BUSY', 'Wait for accepted work to finish.');
     if (getModel(id).capability !== 'text') throw new CompanionError('INCOMPATIBLE_MODEL', 'Image and speech models cannot be assigned to writing.');
     if (id !== (this.runtime.model || MODEL).id || !this.installed) throw new CompanionError('INCOMPATIBLE_MODEL', 'Load an installed, verified writing model before assigning it.');
     await this.saveAssignment(id); this.assignment = id;
-  }
-  /** The model websites use; null uses the writing model. */
-  async assignCoding(id) {
-    if (this.runtime.busy || this.runtime.reserved) throw new CompanionError('BUSY', 'Wait for accepted work to finish.');
-    if (id !== null) {
-      const model = getModel(id);
-      if (model.capability !== 'text') throw new CompanionError('INCOMPATIBLE_MODEL', 'Choose a writing or coding model for websites.');
-      if (!this.models.find((entry) => entry.id === id)?.installed) throw new CompanionError('MISSING_WEIGHTS', `Download ${model.name} before using it for websites.`);
-    }
-    this.coding = id; await this.saveAssignment(this.assignment);
-    await this.reconcile();
   }
   downloadArtifact(id) {
     const model = getModel(id);
@@ -137,7 +123,7 @@ class Library extends EventEmitter {
   async shutdown() { this.downloadAbort?.abort(); try { await this.downloadPromise; } catch {} }
   async saveAssignment(id) {
     const file = path.join(this.runtime.directory, 'assignment.json');
-    await fs.writeFile(file + '.tmp', JSON.stringify({ text: id, ...(this.coding ? { coding: this.coding } : {}) }), { mode: 0o600 });
+    await fs.writeFile(file + '.tmp', JSON.stringify({ text: id }), { mode: 0o600 });
     await fs.rename(file + '.tmp', file);
   }
   async remove() {

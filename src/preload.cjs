@@ -26,7 +26,6 @@ contextBridge.exposeInMainWorld('companion', Object.freeze({
   cancelDownload: () => ipcRenderer.invoke('companion:cancelDownload'),
   remove: () => ipcRenderer.invoke('companion:remove'),
   assign: (id) => ipcRenderer.invoke('companion:assign', id),
-  assignCoding: (id) => ipcRenderer.invoke('companion:assignCoding', id),
   catalog: (id) => modelAction('catalog', id),
   pair: () => ipcRenderer.invoke('companion:pair'),
   disableService: () => ipcRenderer.invoke('companion:disableService'),

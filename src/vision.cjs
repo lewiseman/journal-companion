@@ -10,7 +10,7 @@ const { bounded, publicError } = require('./runtime.cjs');
 // and {mode, question}; nothing else from the note. The image is kept only as
 // an OS-encrypted file while its job is queued or running.
 const VISION_OPERATION = 'ask-note-image';
-// I04: transcribe a scanned page. Qwen3-VL reads; when installed, EasyOCR
+// I04: transcribe a scanned page. The vision model reads; when installed, EasyOCR
 // reads independently so the phone can flag words the two disagree on.
 const SCAN_OPERATION = 'scan-note-image';
 // I02: reflection questions about one diary photo the user chose. Only the
@@ -209,7 +209,7 @@ function selfTestImage() {
 class Vision extends EventEmitter {
   constructor(runtime, { protector = null, directory = runtime.directory } = {}) {
     super(); Object.assign(this, { runtime, protector }); this.model = VISION_MODEL; this.ocrModel = OCR_MODEL;
-    this.root = path.join(directory, 'image-input'); this.state = { status: 'needs_download', detail: 'Download Qwen3-VL to ask about note images.' };
+    this.root = path.join(directory, 'image-input'); this.state = { status: 'needs_download', detail: `Download ${VISION_MODEL.name} to ask about note images.` };
   }
   get settings() { return path.join(this.runtime.directory, 'vision.json'); }
   files(model = this.model) { return artifactParts(model).map((part) => ({ part, file: path.join(this.runtime.directory, 'models', part.filename) })); }
@@ -228,7 +228,7 @@ class Vision extends EventEmitter {
     let tested = null;
     try { tested = JSON.parse(await fs.readFile(this.settings, 'utf8')); } catch {}
     this.state = this.runtime.unsupported ? { status: 'incompatible', detail: this.runtime.unsupported }
-      : !installed ? { status: 'needs_download', detail: 'Download Qwen3-VL (model and image projector) to ask about note images.' }
+      : !installed ? { status: 'needs_download', detail: `Download ${this.model.name} (model and image projector) to ask about note images.` }
       : tested?.model !== this.model.id ? { status: 'untested', detail: 'Downloaded. Run the image self-test to enable image questions.' }
       : { status: 'ready', detail: `Image self-test passed ${new Date(tested.at).toLocaleString()}. Loads for each request.` };
     this.emit('change');

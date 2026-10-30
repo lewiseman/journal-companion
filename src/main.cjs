@@ -128,10 +128,6 @@ else {
       if (args.length !== 1 || typeof args[0] !== 'string') throw new CompanionError('INVALID_INPUT', 'Choose an installed writing model.');
       return library.assign(args[0]).then(() => { publish(); return { ok: true }; });
     });
-    handle('assignCoding', (...args) => {
-      if (args.length !== 1 || typeof args[0] !== 'string') throw new CompanionError('INVALID_INPUT', 'Choose an installed coding model.');
-      return library.assignCoding(args[0] || null).then(() => { publish(); return { ok: true }; });
-    });
     handle('catalog', withModel(async (model) => { await shell.openExternal(model.detailsUrl || `https://huggingface.co/${model.repository}/tree/${model.revision}`); return { ok: true }; }));
     const service = () => { if (!devices) throw new CompanionError('SECURE_STORAGE', serviceError || 'Secure device storage is unavailable.'); return devices; };
     handle('pair', noArgs(async () => {

@@ -51,7 +51,7 @@ for (const [key, look, label] of TABS) {
 }
 const [lookButton, lookSheet] = appearanceButton(navContent(['assets/art/nav/more_appearance.png'], 'Look'));
 document.body.append(lookSheet);
-rail.append(h('button', { class: 'tab', onclick: () => showBook() }, navContent(['assets/art/nav/diary_inactive.png', 'assets/art/nav/diary_active.png'], 'Book')),
+rail.append(h('button', { class: 'tab', onclick: () => showBook() }, navContent(['assets/art/nav/diary_inactive.png', 'assets/art/nav/diary_active.png'], 'Journal')),
   lookButton,
   h('div', { class: 'rail-foot', title: 'Everything stays on this Mac and your home Wi-Fi.' }, icon('shield'), h('span', { text: 'Private' })));
 window.addEventListener('resize', placeGlow);

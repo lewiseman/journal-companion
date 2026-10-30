@@ -1,5 +1,5 @@
 // Released GGUF options for Apple Silicon at 4K context, including heavy experiments.
-// Exact publisher/converter metadata checked 2026-10-27 (coding: 2026-10-28);
+// Exact publisher/converter metadata checked 2026-10-27;
 // heavy additions: 2026-10-29. No weights bundled.
 module.exports = Object.freeze([{
   id: 'llama-3.2-3b-instruct-q4_k_m@5ab33fa94d1d04e903623ae72c95d1696f09f9e8',
@@ -199,40 +199,4 @@ module.exports = Object.freeze([{
   filename: 'mistralai_Mistral-Small-3.2-24B-Instruct-2506-Q4_K_M.gguf', bytes: 14333915264,
   sha256: '80f5bda68f156f12650ca03a0a2dbfae06a215ac41caa773b8631a479f82415e',
   revision: 'b3592d09be469bedab6be51f577824b3b6b76ba1', license: 'Apache 2.0',
-}, {
-  recommended: true, id: 'qwen2.5-coder-7b-instruct-q4_k_m@1f629da0c8bed16b9e50cee91c70693650e66c35',
-  name: 'Qwen2.5-Coder · 7B Instruct', collection: 'Coding', tier: 'Compact coding model',
-  description: 'A compact Qwen coding model for simple HTML, CSS and small snippets, with room left for other apps.',
-  memoryGB: 16, fitHint: 'A light coding option for your 24 GB Mac.',
-  origin: 'Qwen / Bartowski / Hugging Face', repository: 'bartowski/Qwen2.5-Coder-7B-Instruct-GGUF',
-  filename: 'Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf', bytes: 4683074336,
-  sha256: '1664fccab734674a50763490a8c6931b70e3f2f8ec10031b54806d30e5f956b6',
-  revision: '1f629da0c8bed16b9e50cee91c70693650e66c35', license: 'Apache 2.0',
-}, {
-  id: 'qwen2.5-coder-14b-instruct-q4_k_m@5b379ec4bf71bafecb5f9081ad28b19939128988',
-  name: 'Qwen2.5-Coder · 14B Instruct', collection: 'Coding', tier: 'Everyday coding model',
-  description: 'A larger Qwen coding model and a safe default for clean, self-contained HTML and CSS pages.',
-  memoryGB: 24, fitHint: 'Fits comfortably on your 24 GB Mac; close memory-heavy apps for long pages.',
-  origin: 'Qwen / Bartowski / Hugging Face', repository: 'bartowski/Qwen2.5-Coder-14B-Instruct-GGUF',
-  filename: 'Qwen2.5-Coder-14B-Instruct-Q4_K_M.gguf', bytes: 8988111072,
-  sha256: '2946d28c9e1bb2bcae6d42e8678863a31775df6f740315c7d7e6d6b6411f5937',
-  revision: '5b379ec4bf71bafecb5f9081ad28b19939128988', license: 'Apache 2.0',
-}, {
-  id: 'gpt-oss-20b-mxfp4@15dcfc7e7c608c6161507211ed43c5b590801b4b',
-  name: 'gpt-oss · 20B', collection: 'Coding', tier: 'Reasoning coding model', quantization: 'MXFP4', reasoningBudget: 0,
-  description: 'OpenAI’s open-weight mixture-of-experts model, capable at code and quick on Apple Silicon. Configured for direct answers.',
-  memoryGB: 24, fitHint: 'A 12 GB file; close other memory-heavy apps on your 24 GB Mac.',
-  origin: 'OpenAI / ggml-org / Hugging Face', repository: 'ggml-org/gpt-oss-20b-GGUF',
-  filename: 'gpt-oss-20b-MXFP4.gguf', bytes: 12109566624,
-  sha256: '27cd6c432c7672cb812a92f611cf3ba7bbc35928262bb1e1253ff4ee6ae35901',
-  revision: '15dcfc7e7c608c6161507211ed43c5b590801b4b', license: 'Apache 2.0',
-}, {
-  id: 'qwen3-coder-30b-a3b-instruct-q4_k_m@b17cb02dd882d5b6ab62fc777ad2995f19668350',
-  name: 'Qwen3-Coder · 30B A3B Instruct', collection: 'Coding', tier: 'Largest coding model',
-  description: 'The strongest coding choice here: a mixture-of-experts model with about 3B active parameters, so it stays fast despite its size.',
-  memoryGB: 24, fitHint: 'An 18.6 GB file at the edge of a 24 GB Mac. Quit other apps; loading may fail under memory pressure.',
-  origin: 'Qwen / Unsloth / Hugging Face', repository: 'unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF',
-  filename: 'Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf', bytes: 18556689568,
-  sha256: 'fadc3e5f8d42bf7e894a785b05082e47daee4df26680389817e2093056f088ad',
-  revision: 'b17cb02dd882d5b6ab62fc777ad2995f19668350', license: 'Apache 2.0',
 }].map(Object.freeze));

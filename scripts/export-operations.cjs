@@ -4,6 +4,7 @@ const path = require('node:path');
 const summary = require('../src/summary.cjs');
 const transform = require('../src/transform.cjs');
 const { NOTE_HELP } = require('../src/note-help.cjs');
+const { WEBSITE } = require('../src/website.cjs');
 const background = require('../src/background.cjs');
 const { MODELS } = require('../src/model.cjs');
 const operations = {};
@@ -23,8 +24,8 @@ for (const [file, prefix, format] of [
 const question = require('../src/note-question.cjs');
 for (const id of question.QUESTION_OPERATIONS) add(id, question.questionSystem(id), question.NOTE_QUESTION_LIMITS, question.noteQuestionResponseFormat());
 for (const [id, spec] of Object.entries(NOTE_HELP)) {
-  // Website generation keeps its coding model and companion-specific contract for now.
-  if (spec.coding) continue;
+  // Websites keep their companion-specific contracts for now.
+  if (Object.hasOwn(WEBSITE, id)) continue;
   const params = spec.params();
   add(id, spec.system, spec.limits, spec.responseFormat?.() ?? null, 'raw', { ...params, seed: params.temp === 0 ? 42 : 'random' });
 }

@@ -9,7 +9,7 @@ const OPERATIONS = {
   'clarify-note': ['check', NOTES, 'Fixing grammar'],
   'markdown-note': ['layers', NOTES, 'Tidying a note'],
   'present-text': ['sparkle', MOVIES, 'Styling a note'],
-  'present-website': ['globe', TASKS, 'Building a page'],
+  'design-website': ['globe', TASKS, 'Building a page'],
   'suggest-note-metadata': ['tag', NOTES, 'Finding a title'],
   'suggest-note-ideas': ['sparkle', AI, 'Finding ideas'],
   'suggest-note-template': ['file', NOTES, 'Making a template'],

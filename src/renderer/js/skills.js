@@ -22,12 +22,6 @@ async function steps(...actions) {
   return true;
 }
 
-/** Downloading a text model switches the writing brain, so put the writing brain back afterwards. */
-function installCoding(m, state) {
-  const writing = state.model?.id, awake = state.status === 'ready';
-  return steps(() => c().install(m.id), () => c().assignCoding(m.id), ...(writing && awake ? [() => c().load(writing)] : []));
-}
-
 /** A capability is missing while the app is still starting up; only a service error makes it a problem. */
 const starting = (state, model) => (state.serviceError ? { tone: 'problem', word: 'Unavailable', model } : { tone: 'working', word: 'Starting', model });
 
@@ -41,7 +35,7 @@ const vadOf = (state) => models(state).find((m) => m.filename === 'ggml-silero-v
 const SKILLS = [
   {
     key: 'writing', name: 'Writing', icon: 'pen', accent: '#8265B0', line: 'Notes, diary help and ideas.',
-    list: (s) => models(s).filter((m) => m.capability === 'text' && m.collection !== 'Coding'),
+    list: (s) => models(s).filter((m) => m.capability === 'text'),
     groups: [['Heavy', 'Heavy · performance testing'], ['Popular', 'Popular'], ['New', 'Newer'], ['Lightweight', 'Small & quick']],
     current: (s) => models(s).find((m) => m.id === s.model?.id) || pick(SKILLS[0].list(s)),
     view(s) {
@@ -156,26 +150,6 @@ const SKILLS = [
     },
     note: 'A quick test shows the model a red square and turns this on only if it answers “red”. Page checking adds a second reader that flags words it reads differently.',
   },
-  {
-    key: 'websites', name: 'Websites', icon: 'globe', accent: '#A46D63', line: 'Builds pages from your notes.',
-    list: (s) => models(s).filter((m) => m.capability === 'text' && m.collection === 'Coding'),
-    current: (s) => pick(SKILLS[5].list(s), lib(s).coding),
-    view(s) {
-      const l = lib(s), m = this.current(s);
-      const using = l.codingReady && models(s).find((x) => x.id === l.coding);
-      if (using) return { tone: 'ready', word: 'Ready', model: using, extra: [['back', 'Use writing brain', () => c().assignCoding(''), busy(s)]] };
-      if (!m) return { tone: 'asleep', word: 'Uses writing', model: m };
-      if (!m.installed) return { tone: 'asleep', word: 'Uses writing', model: m, optional: true,
-        main: [`Get it · ${formatSize(m.bytes)}`, 'download', () => installCoding(m, s)] };
-      return { tone: 'asleep', word: 'Uses writing', model: m, optional: true, main: ['Use it', 'check', () => c().assignCoding(m.id)] };
-    },
-    actions(m, s) {
-      if (lib(s).codingReady && lib(s).coding === m.id) return [['In use']];
-      if (m.installed) return [['Use', 'check', () => c().assignCoding(m.id)]];
-      return [['Download', 'download', () => installCoding(m, s)]];
-    },
-    note: 'Without its own model, websites use the writing brain. With one, each page swaps brains for a few seconds.',
-  },
 ];
 
 /* ── Writing playground (keeps the ids the D01 verification drives) ───────── */
@@ -272,7 +246,7 @@ function drawer() {
   function render(state) {
     if (!skill) return;
     const list = skill.list(state);
-    const next = JSON.stringify([skill.key, list.map((m) => [m.id, m.installed, m.loaded]), lib(state).download, state.progress, state.status, state.speech?.status, state.speech?.model, state.embedding?.status, state.embedding?.model, state.image?.model, state.image?.installed, lib(state).coding, lib(state).codingReady]);
+    const next = JSON.stringify([skill.key, list.map((m) => [m.id, m.installed, m.loaded]), lib(state).download, state.progress, state.status, state.speech?.status, state.speech?.model, state.embedding?.status, state.embedding?.model, state.image?.model, state.image?.installed]);
     if (next === sig) return;
     sig = next;
     const groups = skill.groups || [[null, null]];
